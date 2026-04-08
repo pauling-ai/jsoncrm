@@ -1,6 +1,6 @@
 # JSONCRM
 
-A CRM system built on top of JSON. That's right. You may be wondering why? And the answer is: why not? If this doesn't immediately ticklet your hypothalamus here is the longer intro ↓↓↓
+A CRM system built on top of JSON. That's right. You may be wondering why? And the answer is: why not? If this doesn't immediately tickle your hypothalamus here is the longer intro ↓↓↓
 
 CRMs are valuable because they combine two things most companies fail to systematize: a structured database of customer relationships and a process engine that makes sure people actually do what they said they would do. Contacts, companies, deals, and activities form a living timeline of every interaction, while workflows make sure nothing quietly dies in a corner. The real power of a CRM is not the UI that guides people through a process, or the data contained in its database. It is the enforcement of consistent behavior at scale. In other words, it is the system that politely refuses to let you forget your leads.
 
