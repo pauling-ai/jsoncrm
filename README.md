@@ -22,3 +22,7 @@ This project is licensed under the GNU Affero General Public License v3.0 only.
 
 Commercial licensing is available for organizations that want to use this software
 without the obligations of the AGPL. Contact: info@pauling.ai
+
+## Copyright
+
+Copyright (C) 2026 Pauling.AI
