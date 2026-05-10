@@ -39,6 +39,24 @@ from jsoncrm.utils import (
     search_competitors,
 )
 
+# ---------------------------------------------------------------------------
+# Global JSON-output mode (toggled by --json)
+# ---------------------------------------------------------------------------
+_JSON_MODE = False
+
+
+def _set_json_mode(enabled):
+    global _JSON_MODE
+    _JSON_MODE = enabled
+
+
+def _jout(data):
+    """Print *data* as JSON and return True when JSON mode is active."""
+    if _JSON_MODE:
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        return True
+    return False
+
 
 def load_all():
     records = []
@@ -90,25 +108,34 @@ def _load_records(database_path):
 
 
 def cmd_search(args):
+    comp_hits = []
     if args.competitor:
         comp_hits = search_competitors(args.query, person=args.person, company=args.company)
-        if comp_hits:
-            print(f"⚠️  COMPETITOR MATCH for '{args.query}':\n")
-            for kind, entry in comp_hits:
-                name = entry.get("name", "—")
-                role = entry.get("role", "")
-                url = entry.get("url", "")
-                if kind == "company":
-                    print(f"  [COMPETITOR]  {name}  —  {role}")
-                else:
-                    print(f"  [COMPETITOR]  {name}  ({entry.get('company', '')})")
-                if url:
-                    print(f"           {url}")
-                print()
 
     records = load_all()
     hits = [(stage, r) for stage, r in records
             if match(r, args.query, person=args.person, company=args.company)]
+
+    if _jout({
+        "query": args.query,
+        "competitor_matches": [{"kind": k, **e} for k, e in comp_hits],
+        "results": [{"stage": s, **r} for s, r in hits],
+    }):
+        return
+
+    if comp_hits:
+        print(f"⚠️  COMPETITOR MATCH for '{args.query}':\n")
+        for kind, entry in comp_hits:
+            name = entry.get("name", "—")
+            role = entry.get("role", "")
+            url = entry.get("url", "")
+            if kind == "company":
+                print(f"  [COMPETITOR]  {name}  —  {role}")
+            else:
+                print(f"  [COMPETITOR]  {name}  ({entry.get('company', '')})")
+            if url:
+                print(f"           {url}")
+            print()
 
     if not hits:
         print(f"No results for '{args.query}'")
@@ -295,6 +322,17 @@ def cmd_intake(args):
         sys.exit(1)
 
     r = unscored[0]
+    output_path = Path(args.output) if args.output else PENDING_FILE
+    pending = {
+        "linkedin_url": r.get("linkedin_url"),
+        "target_file": str(path),
+        "fields": {},
+    }
+    atomic_write_json(output_path, pending)
+
+    if _jout({"record": r, "remaining": len(unscored), "pending_file": str(output_path)}):
+        return
+
     print(f"Name:      {r.get('name')}")
     print(f"URL:       {r.get('linkedin_url')}")
     print(f"Username:  {r.get('linkedin_username')}")
@@ -303,14 +341,6 @@ def cmd_intake(args):
     if r.get("company"):
         print(f"Company:   {r.get('company')}")
     print(f"Remaining: {len(unscored)} unscored")
-
-    output_path = Path(args.output) if args.output else PENDING_FILE
-    pending = {
-        "linkedin_url": r.get("linkedin_url"),
-        "target_file": str(path),
-        "fields": {},
-    }
-    atomic_write_json(output_path, pending)
     print(f"\nWrote {output_path} — fill in fields, then run: jsoncrm apply_update {output_path}")
 
 
@@ -340,6 +370,22 @@ def cmd_top(args):
     if not results:
         print("No leads match the filters.")
         sys.exit(1)
+
+    if _jout(results):
+        if args.output:
+            if len(results) != 1:
+                print("Error: --output requires exactly one result. Use -n 1 or tighten filters.",
+                      file=sys.stderr)
+                sys.exit(1)
+            output_path = Path(args.output)
+            r = results[0]
+            pending = {
+                "linkedin_url": r.get("linkedin_url"),
+                "target_file": str(path),
+                "fields": {},
+            }
+            atomic_write_json(output_path, pending)
+        return
 
     print(json.dumps(results, indent=2, ensure_ascii=False))
     print(f"\n({len(results)} lead(s) shown)", file=sys.stderr)
@@ -395,6 +441,22 @@ def cmd_merge(args):
             added.append(record)
             if url:
                 known_urls.add(url)
+
+    if _jout({
+        "source_total": len(source_records),
+        "scored": len(scored),
+        "unscored": len(unscored),
+        "added": added,
+        "skipped": skipped,
+        "dry_run": args.dry_run,
+    }):
+        if not args.dry_run:
+            if added:
+                merged = existing_leads + added
+                atomic_write_json(leads_path, merged)
+            if unscored != source_records:
+                atomic_write_json(source_path, unscored)
+        return
 
     print(f"Source:   {len(source_records)} records")
     print(f"Scored:   {len(scored)}  |  Unscored: {len(unscored)} (left in source file)")
@@ -457,6 +519,16 @@ def cmd_deduplicate(args):
         else:
             kept.append(record)
 
+    if _jout({
+        "source_total": len(source_records),
+        "kept": kept,
+        "removed": removed,
+        "dry_run": args.dry_run,
+    }):
+        if not args.dry_run and kept != source_records:
+            atomic_write_json(source_path, kept)
+        return
+
     print(f"Source:   {len(source_records)} records")
     print(f"Keep:     {len(kept)}")
     print(f"Drop:     {len(removed)} (already in pipeline)")
@@ -516,6 +588,16 @@ def cmd_filter_competitors(args):
             removed.append(record)
         else:
             kept.append(record)
+
+    if _jout({
+        "source_total": len(source_records),
+        "kept": kept,
+        "removed": removed,
+        "dry_run": args.dry_run,
+    }):
+        if not args.dry_run and kept != source_records:
+            atomic_write_json(source_path, kept)
+        return
 
     print(f"Source:   {len(source_records)} records")
     print(f"Keep:     {len(kept)}")
@@ -594,6 +676,8 @@ def cmd_promote(args):
     atomic_write_json(dst_path, dst_data)
 
     name = record.get("name", args.linkedin_url)
+    if _jout({"action": "promoted", "record": record, "from": src_path.name, "to": dst_path.name}):
+        return
     print(f"Promoted: {name}  {src_path.name} → {dst_path.name}")
 
 
@@ -608,9 +692,11 @@ def cmd_stats(args):
     else:
         pipeline = [(name, path) for name, path in PIPELINE_FILES]
 
+    report = {}
     for stage, path in pipeline:
         records = load_json(path)
         total = len(records)
+        report[stage] = {"total": total}
 
         if stage == "leads" and total > 0:
             scored = [r for r in records if r.get("score") is not None]
@@ -624,28 +710,309 @@ def cmd_stats(args):
                 if s != "❌":
                     by_score[s] = by_score.get(s, 0) + 1
 
-            print(f"Leads: {total}")
-            print(f"  Scored:       {len(scored)}")
-            print(f"  Unscored:     {len(unscored)}")
-            print(f"  Contacted:    {len(contacted)}")
-            print(f"  Disqualified: {len(disqualified)}")
-            for stars in ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐", "⭐"]:
-                count = by_score.get(stars, 0)
-                if count:
-                    print(f"  {stars}  {count}")
+            report[stage]["scored"] = len(scored)
+            report[stage]["unscored"] = len(unscored)
+            report[stage]["contacted"] = len(contacted)
+            report[stage]["disqualified"] = len(disqualified)
+            report[stage]["by_score"] = by_score
         elif stage == "prospects" and total > 0:
             closed = [r for r in records if r.get("status") == "closed"]
             active = total - len(closed)
-            print(f"Prospects: {total} ({active} active, {len(closed)} closed)")
+            report[stage]["active"] = active
+            report[stage]["closed"] = len(closed)
         elif stage == "customers" and total > 0:
             companies = len(set(r.get("company") for r in records if r.get("company")))
+            paid = sum(1 for r in records if r.get("paid"))
+            unpaid = total - paid
             paid_companies = len(set(r.get("company") for r in records if r.get("paid") and r.get("company")))
             unpaid_companies = len(set(r.get("company") for r in records if not r.get("paid") and r.get("company")))
-            print(f"Customers: {total} contacts ({companies} companies)")
-            print(f"  Paid:     {sum(1 for r in records if r.get('paid'))} contacts ({paid_companies} companies)")
-            print(f"  Unpaid:   {sum(1 for r in records if not r.get('paid'))} contacts ({unpaid_companies} companies)")
+            report[stage]["companies"] = companies
+            report[stage]["paid"] = paid
+            report[stage]["unpaid"] = unpaid
+            report[stage]["paid_companies"] = paid_companies
+            report[stage]["unpaid_companies"] = unpaid_companies
+
+    if _jout(report):
+        return
+
+    for stage, path in pipeline:
+        total = report[stage]["total"]
+        if stage == "leads" and total > 0:
+            print(f"Leads: {total}")
+            print(f"  Scored:       {report[stage]['scored']}")
+            print(f"  Unscored:     {report[stage]['unscored']}")
+            print(f"  Contacted:    {report[stage]['contacted']}")
+            print(f"  Disqualified: {report[stage]['disqualified']}")
+            for stars in ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐", "⭐"]:
+                count = report[stage]["by_score"].get(stars, 0)
+                if count:
+                    print(f"  {stars}  {count}")
+        elif stage == "prospects" and total > 0:
+            print(f"Prospects: {total} ({report[stage]['active']} active, {report[stage]['closed']} closed)")
+        elif stage == "customers" and total > 0:
+            print(f"Customers: {total} contacts ({report[stage]['companies']} companies)")
+            print(f"  Paid:     {report[stage]['paid']} contacts ({report[stage]['paid_companies']} companies)")
+            print(f"  Unpaid:   {report[stage]['unpaid']} contacts ({report[stage]['unpaid_companies']} companies)")
         else:
             print(f"{stage.capitalize()}: {total}")
+
+
+def cmd_validate(args):
+    """Validate all pipeline JSON files for structural integrity."""
+    from jsoncrm.config import Config
+    cfg = Config.from_file(args.config)
+    schema.apply_config(cfg)
+
+    # Use explicit overrides if provided, otherwise fall back to config-driven pipeline
+    if args.leads_file or args.prospects_file or args.customers_file:
+        pipeline = [
+            ("leads", Path(args.leads_file) if args.leads_file else LEADS_FILE),
+            ("prospects", Path(args.prospects_file) if args.prospects_file else PROSPECTS_FILE),
+            ("customers", Path(args.customers_file) if args.customers_file else CUSTOMERS_FILE),
+        ]
+    else:
+        pipeline = [(name, path) for name, path in PIPELINE_FILES]
+    errors = []
+    warnings_list = []
+    summary = {}
+
+    primary = cfg.identity_primary
+    fallback = cfg.identity_fallback
+    valid_scores = set(cfg.score_order) | {cfg.disqualified_score}
+
+    for stage, path in pipeline:
+        stage_errors = []
+        stage_warnings = []
+        record_count = 0
+
+        if not path.exists():
+            stage_errors.append(f"file not found")
+            errors.append({"stage": stage, "file": str(path), "error": "file not found"})
+            summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
+            continue
+
+        try:
+            data = json.loads(path.read_text())
+        except json.JSONDecodeError as e:
+            stage_errors.append(f"invalid JSON: {e}")
+            errors.append({"stage": stage, "file": str(path), "error": f"invalid JSON: {e}"})
+            summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
+            continue
+
+        if not isinstance(data, list):
+            stage_errors.append("file must be a JSON array")
+            errors.append({"stage": stage, "file": str(path), "error": "file must be a JSON array"})
+            summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
+            continue
+
+        record_count = len(data)
+        seen = {}
+        for idx, record in enumerate(data):
+            if not isinstance(record, dict):
+                stage_errors.append(f"record {idx} is not an object")
+                errors.append({"stage": stage, "file": str(path), "record": idx, "error": "not an object"})
+                continue
+
+            identity = record.get(primary) or (record.get(fallback[0]) if fallback else None)
+            if not identity:
+                stage_errors.append(f"record {idx} missing identity field ({primary} or {', '.join(fallback)})")
+                errors.append({"stage": stage, "file": str(path), "record": idx, "error": f"missing identity ({primary} or {', '.join(fallback)})"})
+            else:
+                key = normalize_url(identity) if primary == "linkedin_url" else str(identity)
+                if key in seen:
+                    stage_errors.append(f"record {idx} duplicate identity '{identity}' (first at {seen[key]})")
+                    errors.append({"stage": stage, "file": str(path), "record": idx, "error": f"duplicate identity '{identity}'"})
+                else:
+                    seen[key] = idx
+
+            score = record.get("score")
+            if score is not None and score not in valid_scores:
+                stage_warnings.append(f"record {idx} has unknown score '{score}'")
+                warnings_list.append({"stage": stage, "file": str(path), "record": idx, "warning": f"unknown score '{score}'"})
+
+        summary[stage] = {
+            "valid": len(stage_errors) == 0,
+            "records": record_count,
+            "errors": len(stage_errors),
+            "warnings": len(stage_warnings),
+        }
+
+    total_errors = len(errors)
+    total_warnings = len(warnings_list)
+
+    if _jout({
+        "valid": total_errors == 0,
+        "total_errors": total_errors,
+        "total_warnings": total_warnings,
+        "summary": summary,
+        "errors": errors,
+        "warnings": warnings_list,
+    }):
+        if total_errors:
+            sys.exit(1)
+        return
+
+    if total_errors == 0 and total_warnings == 0:
+        print("✅ All pipeline files are valid.")
+        return
+
+    for stage, info in summary.items():
+        status = "✅" if info["valid"] else "❌"
+        print(f"{status} {stage}: {info['records']} records, {info['errors']} errors, {info['warnings']} warnings")
+
+    if errors:
+        print("\nErrors:")
+        for e in errors:
+            loc = f"{e['stage']} record {e.get('record', 'N/A')}"
+            print(f"  [{loc}] {e['error']}")
+
+    if warnings_list:
+        print("\nWarnings:")
+        for w in warnings_list:
+            loc = f"{w['stage']} record {w.get('record', 'N/A')}"
+            print(f"  [{loc}] {w['warning']}")
+
+    if total_errors:
+        sys.exit(1)
+
+
+def cmd_recent(args):
+    """Show the most recently added records across the pipeline."""
+    if args.leads_file or args.prospects_file or args.customers_file:
+        pipeline = [
+            ("leads", Path(args.leads_file) if args.leads_file else LEADS_FILE),
+            ("prospects", Path(args.prospects_file) if args.prospects_file else PROSPECTS_FILE),
+            ("customers", Path(args.customers_file) if args.customers_file else CUSTOMERS_FILE),
+        ]
+    else:
+        pipeline = [(name, path) for name, path in PIPELINE_FILES]
+    all_records = []
+    for stage, path in pipeline:
+        if not path.exists():
+            continue
+        for r in load_json(path):
+            if isinstance(r, dict):
+                all_records.append({"stage": stage, "file": str(path), **r})
+
+    if args.stage:
+        all_records = [r for r in all_records if r["stage"] == args.stage]
+
+    # Sort by 'added' descending; records without 'added' go to the bottom
+    def _added_key(r):
+        return r.get("added") or ""
+
+    all_records.sort(key=_added_key, reverse=True)
+    results = all_records[:args.num]
+
+    if _jout(results):
+        return
+
+    if not results:
+        print("No records found.")
+        return
+
+    for r in results:
+        added = r.get("added") or "—"
+        print(f"[{r['stage'].upper()}] {added}  {r.get('name')}  —  {r.get('company')}  ({r.get('linkedin_url')})")
+
+
+def cmd_demote(args):
+    """Move a record back one pipeline stage (reverse of promote)."""
+    if args.customer:
+        stage = "customer"
+    else:
+        stage = "prospect"
+
+    # Reverse PROMOTE_MAP
+    reverse_map = {v[1]: (v[1], v[0]) for v in PROMOTE_MAP.values()}
+    # Also map by stage name
+    if stage == "customer":
+        src_name, dst_name = PROMOTE_MAP["prospect"][1], PROMOTE_MAP["prospect"][0]
+    else:
+        src_name, dst_name = PROMOTE_MAP["lead"][1], PROMOTE_MAP["lead"][0]
+
+    src_path = Path(args.from_file) if args.from_file else CRM_DIR / src_name
+    dst_path = Path(args.to_file) if args.to_file else CRM_DIR / dst_name
+
+    if not src_path.exists():
+        print(f"Error: {src_path} not found")
+        sys.exit(1)
+
+    src_data = load_json(src_path)
+    dst_data = load_json(dst_path)
+
+    norm = normalize_url(args.linkedin_url)
+    record = None
+    remaining = []
+    for r in src_data:
+        if normalize_url(r.get("linkedin_url", "")) == norm:
+            record = r
+        else:
+            remaining.append(r)
+
+    if record is None:
+        print(f"Error: no record found for '{args.linkedin_url}' in {src_path.name}")
+        sys.exit(1)
+
+    dst_data.append(record)
+    atomic_write_json(src_path, remaining)
+    atomic_write_json(dst_path, dst_data)
+
+    name = record.get("name", args.linkedin_url)
+    if _jout({"action": "demoted", "record": record, "from": src_path.name, "to": dst_path.name}):
+        return
+    print(f"Demoted: {name}  {src_path.name} → {dst_path.name}")
+
+
+def cmd_list(args):
+    """List records in a pipeline stage."""
+    stage = args.stage
+    path = None
+    if args.file:
+        path = Path(args.file)
+    else:
+        for name, p in PIPELINE_FILES:
+            if name == stage:
+                path = p
+                break
+
+    if path is None:
+        print(f"Error: unknown stage '{stage}'")
+        sys.exit(1)
+
+    if not path.exists():
+        print(f"Error: {path} not found")
+        sys.exit(1)
+
+    records = load_json(path)
+    if not isinstance(records, list):
+        print("Error: file must be a JSON array")
+        sys.exit(1)
+
+    if args.score:
+        records = [r for r in records if r.get("score") == args.score]
+    if args.company:
+        records = [r for r in records if args.company.lower() in (r.get("company") or "").lower()]
+    if args.query:
+        records = [r for r in records if match(r, args.query)]
+
+    total = len(records)
+    if args.limit:
+        records = records[:args.limit]
+
+    if _jout(records):
+        return
+
+    if not records:
+        print(f"No records in '{stage}'.")
+        return
+
+    print(f"{len(records)} of {total} record(s) in '{stage}':\n")
+    for r in records:
+        score = r.get("score") or "—"
+        print(f"  {r.get('name')}  —  {r.get('company')}  [{score}]")
+        if r.get("linkedin_url"):
+            print(f"           {r['linkedin_url']}")
 
 
 def main():
@@ -653,8 +1020,13 @@ def main():
     parser.add_argument("--config", default=None, help="Path to .crm.json config file")
     subparsers = parser.add_subparsers(dest="command")
 
+    # Shared parent parser so --json can appear after subcommands
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument("--json", action="store_true",
+                        help="Output machine-readable JSON instead of human-readable text")
+
     # search
-    p_search = subparsers.add_parser("search", help="Search CRM pipeline for a lead.")
+    p_search = subparsers.add_parser("search", parents=[parent], help="Search CRM pipeline for a lead.")
     p_search.add_argument("query", help="Name, company, LinkedIn URL, or email fragment to search for")
     mode = p_search.add_mutually_exclusive_group()
     mode.add_argument("--person", action="store_true", help="Search person fields only (name, LinkedIn URL, email)")
@@ -663,50 +1035,50 @@ def main():
                           help="Also search the competitor watchlist")
 
     # find
-    p_find = subparsers.add_parser("find", help="Find records in a specific CRM JSON file.")
+    p_find = subparsers.add_parser("find", parents=[parent], help="Find records in a specific CRM JSON file.")
     p_find.add_argument("--database_file", required=True, help="JSON file to search")
     p_find.add_argument("--item_file", default=None, help="Path to JSON object containing match fields")
     p_find.add_argument("--item_json", default=None, help="JSON object containing match fields")
     p_find.add_argument("--output_file", default=None, help="Optional file for matched results")
 
     # add
-    p_add = subparsers.add_parser("add", help="Add one record to a specific CRM JSON file.")
+    p_add = subparsers.add_parser("add", parents=[parent], help="Add one record to a specific CRM JSON file.")
     p_add.add_argument("--database_file", required=True, help="JSON file to update")
     p_add.add_argument("--item_file", default=None, help="Path to JSON object to add")
     p_add.add_argument("--item_json", default=None, help="JSON object to add")
     p_add.add_argument("--output_file", default=None, help="Optional file for written record")
 
     # update
-    p_update = subparsers.add_parser("update", help="Update one record in a specific CRM JSON file.")
+    p_update = subparsers.add_parser("update", parents=[parent], help="Update one record in a specific CRM JSON file.")
     p_update.add_argument("--database_file", required=True, help="JSON file to update")
     p_update.add_argument("--item_file", default=None, help="Path to JSON object containing identity and fields")
     p_update.add_argument("--item_json", default=None, help="JSON object containing identity and fields")
     p_update.add_argument("--output_file", default=None, help="Optional file for updated record")
 
     # delete
-    p_delete = subparsers.add_parser("delete", help="Delete one record from a specific CRM JSON file.")
+    p_delete = subparsers.add_parser("delete", parents=[parent], help="Delete one record from a specific CRM JSON file.")
     p_delete.add_argument("--database_file", required=True, help="JSON file to update")
     p_delete.add_argument("--item_file", default=None, help="Path to JSON object containing id or linkedin_url")
     p_delete.add_argument("--item_json", default=None, help="JSON object containing id or linkedin_url")
     p_delete.add_argument("--output_file", default=None, help="Optional file for deleted record")
 
     # apply_update
-    p_apply_update = subparsers.add_parser("apply_update", help="Apply updates from a pending file.")
+    p_apply_update = subparsers.add_parser("apply_update", parents=[parent], help="Apply updates from a pending file.")
     p_apply_update.add_argument("pending_file", nargs="?", const="default", default="default",
                                 help="Pending update file (default: crm/.pending_update.json)")
 
     # intake
-    p_intake = subparsers.add_parser("intake", help="Pick next unscored record from an intake file.")
+    p_intake = subparsers.add_parser("intake", parents=[parent], help="Pick next unscored record from an intake file.")
     p_intake.add_argument("file", help="Path to intake JSON file")
     p_intake.add_argument("--output", default=None,
                           help="Optional pending file to write")
 
     # parse-from-linkedin-mcp
-    p_intake_mcp = subparsers.add_parser("parse-from-linkedin-mcp", help="Convert MCP get_post_likers output to CRM flat list in-place.")
+    p_intake_mcp = subparsers.add_parser("parse-from-linkedin-mcp", parents=[parent], help="Convert MCP get_post_likers output to CRM flat list in-place.")
     p_intake_mcp.add_argument("files", nargs='+', help="Path to one or more MCP JSON files")
 
     # shuffle
-    p_shuffle = subparsers.add_parser("shuffle", help="Shuffle records in a JSON array file in-place.")
+    p_shuffle = subparsers.add_parser("shuffle", parents=[parent], help="Shuffle records in a JSON array file in-place.")
     p_shuffle.add_argument("file", help="Path to JSON array file")
     p_shuffle.add_argument("--seed", type=int, default=None,
                            help="Optional random seed for reproducible shuffles")
@@ -714,7 +1086,7 @@ def main():
                            help="Print shuffled output without writing")
 
     # top
-    p_top = subparsers.add_parser("top", help="Return top scored leads from leads.json.")
+    p_top = subparsers.add_parser("top", parents=[parent], help="Return top scored leads from leads.json.")
     p_top.add_argument("-n", "--num", type=int, default=1,
                        help="Number of leads to return (default: 1)")
     p_top.add_argument("--min", dest="min_score", default=None,
@@ -729,7 +1101,7 @@ def main():
                        help="Override leads file (default: crm/leads.json)")
 
     # merge
-    p_merge = subparsers.add_parser("merge",
+    p_merge = subparsers.add_parser("merge", parents=[parent],
                                     help="Merge scored records from a source file into leads.json.")
     p_merge.add_argument("file", help="Path to source JSON file")
     p_merge.add_argument("--dry-run", action="store_true",
@@ -740,6 +1112,7 @@ def main():
     # deduplicate
     p_deduplicate = subparsers.add_parser(
         "deduplicate",
+        parents=[parent],
         help="Remove records from a source file if their LinkedIn URL already exists in the CRM pipeline.",
     )
     p_deduplicate.add_argument("file", help="Path to source JSON file")
@@ -752,6 +1125,7 @@ def main():
     # filter-competitors
     p_filter_competitors = subparsers.add_parser(
         "filter-competitors",
+        parents=[parent],
         aliases=["filter-blocklist"],
         help="Remove records from a source file if they match crm/competitors.json.",
     )
@@ -760,7 +1134,7 @@ def main():
                                       help="Print what would happen without writing")
 
     # promote
-    p_promote = subparsers.add_parser("promote",
+    p_promote = subparsers.add_parser("promote", parents=[parent],
                                       help="Move a record to the next pipeline stage.")
     p_promote.add_argument("linkedin_url", help="LinkedIn URL of the record to promote")
     stage = p_promote.add_mutually_exclusive_group(required=True)
@@ -774,10 +1148,42 @@ def main():
                            help="Override destination file (for testing)")
 
     # stats
-    p_stats = subparsers.add_parser("stats", help="Show pipeline statistics.")
+    p_stats = subparsers.add_parser("stats", parents=[parent], help="Show pipeline statistics.")
     p_stats.add_argument("--leads-file", default=None, help="Override leads file")
     p_stats.add_argument("--prospects-file", default=None, help="Override prospects file")
     p_stats.add_argument("--customers-file", default=None, help="Override customers file")
+
+    # validate
+    p_validate = subparsers.add_parser("validate", parents=[parent], help="Validate pipeline JSON files for structural integrity.")
+    p_validate.add_argument("--leads-file", default=None, help="Override leads file")
+    p_validate.add_argument("--prospects-file", default=None, help="Override prospects file")
+    p_validate.add_argument("--customers-file", default=None, help="Override customers file")
+
+    # recent
+    p_recent = subparsers.add_parser("recent", parents=[parent], help="Show the most recently added records.")
+    p_recent.add_argument("-n", "--num", type=int, default=10, help="Number of records to show (default: 10)")
+    p_recent.add_argument("--stage", default=None, help="Limit to a specific stage (e.g. leads)")
+    p_recent.add_argument("--leads-file", default=None, help="Override leads file")
+    p_recent.add_argument("--prospects-file", default=None, help="Override prospects file")
+    p_recent.add_argument("--customers-file", default=None, help="Override customers file")
+
+    # demote
+    p_demote = subparsers.add_parser("demote", parents=[parent], help="Move a record back one pipeline stage.")
+    p_demote.add_argument("linkedin_url", help="LinkedIn URL of the record to demote")
+    stage = p_demote.add_mutually_exclusive_group(required=True)
+    stage.add_argument("--customer", action="store_true", help="Demote from customers to prospects")
+    stage.add_argument("--prospect", action="store_true", help="Demote from prospects to leads")
+    p_demote.add_argument("--from-file", default=None, help="Override source file (for testing)")
+    p_demote.add_argument("--to-file", default=None, help="Override destination file (for testing)")
+
+    # list / ls
+    p_list = subparsers.add_parser("list", parents=[parent], aliases=["ls"], help="List records in a pipeline stage.")
+    p_list.add_argument("stage", help="Pipeline stage to list (e.g. leads, prospects, customers)")
+    p_list.add_argument("--score", default=None, help="Filter by score")
+    p_list.add_argument("--company", default=None, help="Filter by company substring")
+    p_list.add_argument("--query", default=None, help="Filter by general search query")
+    p_list.add_argument("-n", "--limit", type=int, default=None, help="Limit number of results")
+    p_list.add_argument("--file", default=None, help="Override the JSON file for the given stage")
 
     args = parser.parse_args()
 
@@ -804,6 +1210,8 @@ def main():
     PENDING_FILE = schema.PENDING_FILE
     SCORE_ORDER = schema.SCORE_ORDER
     PROMOTE_MAP = _build_promote_map(config)
+
+    _set_json_mode(args.json)
 
     if args.command == "search":
         cmd_search(args)
@@ -835,6 +1243,14 @@ def main():
         cmd_promote(args)
     elif args.command == "stats":
         cmd_stats(args)
+    elif args.command == "validate":
+        cmd_validate(args)
+    elif args.command == "recent":
+        cmd_recent(args)
+    elif args.command == "demote":
+        cmd_demote(args)
+    elif args.command in ("list", "ls"):
+        cmd_list(args)
 
 
 if __name__ == "__main__":

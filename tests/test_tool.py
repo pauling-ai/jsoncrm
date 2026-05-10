@@ -8,6 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 
+import jsoncrm.schema as schema
 import jsoncrm.tool as tool
 from jsoncrm.utils import load_json
 
@@ -542,3 +543,269 @@ def test_cmd_stats_empty_pipeline(tmp_path, capsys):
     assert "Leads: 0" in captured.out
     assert "Prospects: 0" in captured.out
     assert "Customers: 0" in captured.out
+
+
+# --- cmd_validate ---
+
+def test_cmd_validate_all_valid(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text(json.dumps([{"name": "Bob", "linkedin_url": "https://linkedin.com/in/bob"}]))
+    customers = tmp_path / "customers.json"
+    customers.write_text("[]\n")
+    tool.cmd_validate(
+        make_args(config=None, leads_file=str(leads), prospects_file=str(prospects), customers_file=str(customers))
+    )
+    captured = capsys.readouterr()
+    assert "All pipeline files are valid" in captured.out
+
+
+def test_cmd_validate_invalid_json(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text("not json")
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    customers = tmp_path / "customers.json"
+    customers.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_validate(
+            make_args(config=None, leads_file=str(leads), prospects_file=str(prospects), customers_file=str(customers))
+        )
+    assert exc.value.code == 1
+
+
+def test_cmd_validate_missing_identity(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text(json.dumps([{"name": "Alice"}]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    customers = tmp_path / "customers.json"
+    customers.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_validate(
+            make_args(config=None, leads_file=str(leads), prospects_file=str(prospects), customers_file=str(customers))
+        )
+    assert exc.value.code == 1
+
+
+def test_cmd_validate_duplicate_identity(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Alice2", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    customers = tmp_path / "customers.json"
+    customers.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_validate(
+            make_args(config=None, leads_file=str(leads), prospects_file=str(prospects), customers_file=str(customers))
+        )
+    assert exc.value.code == 1
+
+
+# --- cmd_recent ---
+
+@pytest.fixture
+def patched_pipeline(tmp_path):
+    """Temporarily point PIPELINE_FILES at tmp_path for recent/list tests."""
+    orig_dir = schema.CRM_DIR
+    orig_pipeline = tool.PIPELINE_FILES
+    orig_leads = tool.LEADS_FILE
+    orig_prospects = tool.PROSPECTS_FILE
+    orig_customers = tool.CUSTOMERS_FILE
+    schema.CRM_DIR = tmp_path
+    pipeline = [
+        ("leads", tmp_path / "leads.json"),
+        ("prospects", tmp_path / "prospects.json"),
+        ("customers", tmp_path / "customers.json"),
+    ]
+    tool.PIPELINE_FILES = pipeline
+    tool.LEADS_FILE = tmp_path / "leads.json"
+    tool.PROSPECTS_FILE = tmp_path / "prospects.json"
+    tool.CUSTOMERS_FILE = tmp_path / "customers.json"
+    yield tmp_path
+    schema.CRM_DIR = orig_dir
+    tool.PIPELINE_FILES = orig_pipeline
+    tool.LEADS_FILE = orig_leads
+    tool.PROSPECTS_FILE = orig_prospects
+    tool.CUSTOMERS_FILE = orig_customers
+
+
+def test_cmd_recent_basic(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "added": "2026-01-03", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Acme", "added": "2026-01-01", "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    tool.cmd_recent(make_args(num=2, stage=None, leads_file=None, prospects_file=None, customers_file=None))
+    captured = capsys.readouterr()
+    assert "Alice" in captured.out
+    assert "Bob" in captured.out
+
+
+def test_cmd_recent_stage_filter(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "added": "2026-01-03", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    prospects = patched_pipeline / "prospects.json"
+    prospects.write_text(json.dumps([
+        {"name": "Bob", "company": "Acme", "added": "2026-01-01", "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    tool.cmd_recent(make_args(num=10, stage="prospects", leads_file=None, prospects_file=None, customers_file=None))
+    captured = capsys.readouterr()
+    assert "Bob" in captured.out
+    assert "Alice" not in captured.out
+
+
+# --- cmd_demote ---
+
+def test_cmd_demote_prospect_to_lead(tmp_path, capsys):
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text(json.dumps([
+        {"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    leads = tmp_path / "leads.json"
+    leads.write_text("[]\n")
+    tool.cmd_demote(
+        make_args(
+            linkedin_url="https://linkedin.com/in/alice",
+            prospect=True,
+            customer=False,
+            from_file=str(prospects),
+            to_file=str(leads),
+        )
+    )
+    captured = capsys.readouterr()
+    assert "Demoted" in captured.out
+    assert len(json.loads(prospects.read_text())) == 0
+    assert len(json.loads(leads.read_text())) == 1
+
+
+def test_cmd_demote_customer_to_prospect(tmp_path, capsys):
+    customers = tmp_path / "customers.json"
+    customers.write_text(json.dumps([
+        {"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    tool.cmd_demote(
+        make_args(
+            linkedin_url="https://linkedin.com/in/alice",
+            prospect=False,
+            customer=True,
+            from_file=str(customers),
+            to_file=str(prospects),
+        )
+    )
+    captured = capsys.readouterr()
+    assert "Demoted" in captured.out
+    assert len(json.loads(customers.read_text())) == 0
+    assert len(json.loads(prospects.read_text())) == 1
+
+
+def test_cmd_demote_missing_record(tmp_path):
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    leads = tmp_path / "leads.json"
+    leads.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_demote(
+            make_args(
+                linkedin_url="https://linkedin.com/in/alice",
+                prospect=True,
+                customer=False,
+                from_file=str(prospects),
+                to_file=str(leads),
+            )
+        )
+    assert exc.value.code == 1
+
+
+# --- cmd_list ---
+
+def test_cmd_list_basic(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": "⭐⭐⭐⭐", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "score": None, "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    tool.cmd_list(make_args(stage="leads", score=None, company=None, query=None, limit=None, file=None))
+    captured = capsys.readouterr()
+    assert "Alice" in captured.out
+    assert "Bob" in captured.out
+
+
+def test_cmd_list_with_filters(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": "⭐⭐⭐⭐", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "score": None, "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    tool.cmd_list(make_args(stage="leads", score="⭐⭐⭐⭐", company=None, query=None, limit=None, file=None))
+    captured = capsys.readouterr()
+    assert "Alice" in captured.out
+    assert "Bob" not in captured.out
+
+
+def test_cmd_list_limit(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": None, "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "score": None, "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    tool.cmd_list(make_args(stage="leads", score=None, company=None, query=None, limit=1, file=None))
+    captured = capsys.readouterr()
+    # Should show 1 of 2 records
+    assert "1 of 2" in captured.out
+
+
+def test_cmd_list_unknown_stage():
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_list(make_args(stage="unknown", score=None, company=None, query=None, limit=None, file=None))
+    assert exc.value.code == 1
+
+
+# --- --json output flag ---
+
+def test_json_mode_search(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    tool._set_json_mode(True)
+    try:
+        tool.cmd_search(make_args(query="Alice", person=False, company=False, competitor=False))
+    finally:
+        tool._set_json_mode(False)
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert "results" in data
+    assert len(data["results"]) == 1
+
+
+def test_json_mode_stats(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text("[]\n")
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    customers = tmp_path / "customers.json"
+    customers.write_text("[]\n")
+    tool._set_json_mode(True)
+    try:
+        tool.cmd_stats(
+            make_args(
+                leads_file=str(leads),
+                prospects_file=str(prospects),
+                customers_file=str(customers),
+            )
+        )
+    finally:
+        tool._set_json_mode(False)
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert "leads" in data
+    assert data["leads"]["total"] == 0

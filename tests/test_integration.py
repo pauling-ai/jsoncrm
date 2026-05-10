@@ -38,6 +38,15 @@ TEST_FIND_QUERY = CRM_DIR / "test_find_query.json"
 TEST_FIND_OUTPUT = CRM_DIR / "test_find_output.json"
 TEST_DELETE_ITEM = CRM_DIR / "test_delete_item.json"
 TEST_DELETE_OUTPUT = CRM_DIR / "test_delete_output.json"
+TEST_VALIDATE_LEADS = CRM_DIR / "test_validate_leads.json"
+TEST_VALIDATE_PROSPECTS = CRM_DIR / "test_validate_prospects.json"
+TEST_VALIDATE_CUSTOMERS = CRM_DIR / "test_validate_customers.json"
+TEST_RECENT_LEADS = CRM_DIR / "test_recent_leads.json"
+TEST_RECENT_PROSPECTS = CRM_DIR / "test_recent_prospects.json"
+TEST_RECENT_CUSTOMERS = CRM_DIR / "test_recent_customers.json"
+TEST_DEMOTE_SRC = CRM_DIR / "test_demote_src.json"
+TEST_DEMOTE_DST = CRM_DIR / "test_demote_dst.json"
+TEST_LIST = CRM_DIR / "test_list.json"
 PENDING_FILE = CRM_DIR / ".pending_update.json"
 
 TEST_RECORDS = [
@@ -112,6 +121,15 @@ def reset_test_files():
     TEST_FIND_OUTPUT.unlink(missing_ok=True)
     TEST_DELETE_ITEM.unlink(missing_ok=True)
     TEST_DELETE_OUTPUT.unlink(missing_ok=True)
+    TEST_VALIDATE_LEADS.unlink(missing_ok=True)
+    TEST_VALIDATE_PROSPECTS.unlink(missing_ok=True)
+    TEST_VALIDATE_CUSTOMERS.unlink(missing_ok=True)
+    TEST_RECENT_LEADS.unlink(missing_ok=True)
+    TEST_RECENT_PROSPECTS.unlink(missing_ok=True)
+    TEST_RECENT_CUSTOMERS.unlink(missing_ok=True)
+    TEST_DEMOTE_SRC.unlink(missing_ok=True)
+    TEST_DEMOTE_DST.unlink(missing_ok=True)
+    TEST_LIST.unlink(missing_ok=True)
     PENDING_FILE.unlink(missing_ok=True)
 
 
@@ -1367,3 +1385,181 @@ def test_stats_empty_pipeline():
     assert "Leads: 0" in out
     assert "Prospects: 0" in out
     assert "Customers: 0" in out
+
+
+def run_validate():
+    result = subprocess.run(
+        [*TOOL, "validate", "--leads-file", str(TEST_VALIDATE_LEADS),
+         "--prospects-file", str(TEST_VALIDATE_PROSPECTS),
+         "--customers-file", str(TEST_VALIDATE_CUSTOMERS)],
+        capture_output=True, text=True,
+    )
+    return result.stdout + result.stderr, result.returncode
+
+
+def test_validate_all_valid():
+    TEST_VALIDATE_LEADS.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
+    TEST_VALIDATE_PROSPECTS.write_text("[]\n")
+    TEST_VALIDATE_CUSTOMERS.write_text("[]\n")
+    out, rc = run_validate()
+    assert rc == 0
+    assert "All pipeline files are valid" in out
+
+
+def test_validate_invalid_json():
+    TEST_VALIDATE_LEADS.write_text("not json")
+    TEST_VALIDATE_PROSPECTS.write_text("[]\n")
+    TEST_VALIDATE_CUSTOMERS.write_text("[]\n")
+    out, rc = run_validate()
+    assert rc == 1
+    assert "invalid JSON" in out
+
+
+def test_validate_duplicate_identity():
+    TEST_VALIDATE_LEADS.write_text(json.dumps([
+        {"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Alice2", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    TEST_VALIDATE_PROSPECTS.write_text("[]\n")
+    TEST_VALIDATE_CUSTOMERS.write_text("[]\n")
+    out, rc = run_validate()
+    assert rc == 1
+    assert "duplicate" in out
+
+
+
+def run_recent(*extra):
+    result = subprocess.run(
+        [*TOOL, "recent", "--leads-file", str(TEST_RECENT_LEADS),
+         "--prospects-file", str(TEST_RECENT_PROSPECTS),
+         "--customers-file", str(TEST_RECENT_CUSTOMERS), *extra],
+        capture_output=True, text=True,
+    )
+    return result.stdout + result.stderr, result.returncode
+
+
+def test_recent_basic():
+    TEST_RECENT_LEADS.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "added": "2026-01-03", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "added": "2026-01-01", "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    TEST_RECENT_PROSPECTS.write_text("[]\n")
+    TEST_RECENT_CUSTOMERS.write_text("[]\n")
+    out, rc = run_recent("-n", "2")
+    assert rc == 0
+    assert "Alice" in out
+    assert "Bob" in out
+
+
+def test_recent_json_mode():
+    TEST_RECENT_LEADS.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "added": "2026-01-03", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    TEST_RECENT_PROSPECTS.write_text("[]\n")
+    TEST_RECENT_CUSTOMERS.write_text("[]\n")
+    out, rc = run_recent("--json", "-n", "1")
+    assert rc == 0
+    data = json.loads(out)
+    assert len(data) == 1
+    assert data[0]["name"] == "Alice"
+
+
+
+def test_demote_prospect_to_lead():
+    TEST_DEMOTE_SRC.write_text(json.dumps([
+        {"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    TEST_DEMOTE_DST.write_text("[]\n")
+    result = subprocess.run(
+        [*TOOL, "demote", "https://linkedin.com/in/alice", "--prospect",
+         "--from-file", str(TEST_DEMOTE_SRC), "--to-file", str(TEST_DEMOTE_DST)],
+        capture_output=True, text=True,
+    )
+    out, rc = result.stdout + result.stderr, result.returncode
+    assert rc == 0
+    assert "Demoted" in out
+    assert len(json.loads(TEST_DEMOTE_SRC.read_text())) == 0
+    assert len(json.loads(TEST_DEMOTE_DST.read_text())) == 1
+
+
+def test_demote_missing_record():
+    TEST_DEMOTE_SRC.write_text("[]\n")
+    TEST_DEMOTE_DST.write_text("[]\n")
+    result = subprocess.run(
+        [*TOOL, "demote", "https://linkedin.com/in/alice", "--prospect",
+         "--from-file", str(TEST_DEMOTE_SRC), "--to-file", str(TEST_DEMOTE_DST)],
+        capture_output=True, text=True,
+    )
+    assert result.returncode == 1
+    assert "no record found" in result.stdout + result.stderr
+
+
+
+def run_list(*extra):
+    result = subprocess.run(
+        [*TOOL, "list", "leads", "--file", str(TEST_LIST), *extra],
+        capture_output=True, text=True,
+    )
+    return result.stdout + result.stderr, result.returncode
+
+
+def test_list_basic():
+    TEST_LIST.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": "⭐⭐⭐⭐", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "score": None, "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    out, rc = run_list()
+    assert rc == 0
+    assert "Alice" in out
+    assert "Bob" in out
+
+
+def test_list_filter_score():
+    TEST_LIST.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": "⭐⭐⭐⭐", "linkedin_url": "https://linkedin.com/in/alice"},
+        {"name": "Bob", "company": "Bio", "score": None, "linkedin_url": "https://linkedin.com/in/bob"},
+    ]))
+    out, rc = run_list("--score", "⭐⭐⭐⭐")
+    assert rc == 0
+    assert "Alice" in out
+    assert "Bob" not in out
+
+
+def test_list_json_mode():
+    TEST_LIST.write_text(json.dumps([
+        {"name": "Alice", "company": "Acme", "score": "⭐⭐⭐⭐", "linkedin_url": "https://linkedin.com/in/alice"},
+    ]))
+    out, rc = run_list("--json")
+    assert rc == 0
+    data = json.loads(out)
+    assert len(data) == 1
+    assert data[0]["name"] == "Alice"
+
+
+def test_stats_json_mode():
+    TEST_STATS_LEADS.write_text("[]\n")
+    TEST_STATS_PROSPECTS.write_text("[]\n")
+    TEST_STATS_CUSTOMERS.write_text("[]\n")
+    result = subprocess.run(
+        [*TOOL, "stats", "--leads-file", str(TEST_STATS_LEADS),
+         "--prospects-file", str(TEST_STATS_PROSPECTS),
+         "--customers-file", str(TEST_STATS_CUSTOMERS), "--json"],
+        capture_output=True, text=True,
+    )
+    out, rc = result.stdout + result.stderr, result.returncode
+    assert rc == 0
+    data = json.loads(out)
+    assert data["leads"]["total"] == 0
+
+
+def test_search_json_mode():
+    TEST_FILE.write_text(json.dumps(TEST_RECORDS, indent=2, ensure_ascii=False) + "\n")
+    result = subprocess.run(
+        [*TOOL, "search", "Alice", "--json"],
+        capture_output=True, text=True,
+    )
+    out, rc = result.stdout + result.stderr, result.returncode
+    assert rc == 0
+    data = json.loads(out)
+    assert len(data["results"]) >= 1
+    assert any(r["name"] == "Alice Testerson" for r in data["results"])
