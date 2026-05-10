@@ -15,3 +15,10 @@ The real shift is that JSONCRM is native to AI agents. JSON is exactly the kind 
 On top of that, extensions become trivial instead of a multi month integration project. Because everything is just files and tools, you can plug in new capabilities as simple services that read and write JSON. An MCP server can watch for new leads and enrich them with data from external sources. Another tool can sync activity with email, trigger campaigns, or update product usage signals. Want to score deals, enrich contacts, or run outbound sequences? Add a tool that reads the files, writes updates, and you are done. No SDK hell, no brittle UI automation, no fighting someone else’s data model. Just composable building blocks operating on shared state. The result is a system where adding new capabilities can be done with a tiny script, not negotiating with a platform.
 
 This project is hosted [here](https://www.jsoncrm.dev)
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 only.
+
+Commercial licensing is available for organizations that want to use this software
+without the obligations of the AGPL. Contact: info@pauling.ai
