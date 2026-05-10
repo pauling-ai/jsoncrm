@@ -196,7 +196,7 @@ def test_find_requires_item_input():
 def test_find_rejects_non_object_matcher():
     out, rc = run("find", "--database_file", str(TEST_FILE), "--item_json", '["not","an","object"]')
     assert rc != 0
-    assert "find matcher must be a JSON object" in out
+    assert "find item must be a JSON object" in out
 
 
 # --- add ---

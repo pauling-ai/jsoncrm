@@ -4,6 +4,8 @@ import json
 from datetime import date
 from pathlib import Path
 
+from jsoncrm.utils import atomic_write_json
+
 
 def cmd_parse_from_linkedin_mcp(args):
     for filename in args.files:
@@ -91,5 +93,5 @@ def cmd_parse_from_linkedin_mcp(args):
                 "notes": ""
             })
             
-        path.write_text(json.dumps(out_data, indent=2, ensure_ascii=False) + "\n")
+        atomic_write_json(path, out_data)
         print(f"Successfully converted {len(out_data)} records in {path.name}.")

@@ -25,6 +25,7 @@ from jsoncrm.schema import (
 )
 from jsoncrm.utils import (
     apply_updates,
+    atomic_write_json,
     build_known_urls,
     coerce,
     find_record,
@@ -59,6 +60,33 @@ def load_item(args):
         return json.loads(args.item_json)
     print("Error: provide one of --item_file or --item_json")
     sys.exit(1)
+
+
+def _load_item_dict(args, command_name):
+    """Load item from args and validate it is a JSON object."""
+    item = load_item(args)
+    if not isinstance(item, dict):
+        print(f"Error: {command_name} item must be a JSON object")
+        sys.exit(1)
+    return item
+
+
+def _require_identity(item, command_name):
+    """Ensure item has an identity field."""
+    identity_field, identity_value = record_identity_value(item)
+    if not identity_field:
+        print(f"Error: {command_name} requires at least one of 'id' or 'linkedin_url'")
+        sys.exit(1)
+    return identity_field, identity_value
+
+
+def _load_records(database_path):
+    """Load records from database_path and validate it is a JSON array."""
+    records = load_json(database_path)
+    if records and not isinstance(records, list):
+        print("Error: database file must be a JSON array")
+        sys.exit(1)
+    return records
 
 
 def cmd_search(args):
@@ -97,15 +125,8 @@ def cmd_find(args):
         print(f"Error: {database_path} not found")
         sys.exit(1)
 
-    matcher = load_item(args)
-    if not isinstance(matcher, dict):
-        print("Error: find matcher must be a JSON object")
-        sys.exit(1)
-
-    records = load_json(database_path)
-    if not isinstance(records, list):
-        print("Error: database file must be a JSON array")
-        sys.exit(1)
+    matcher = _load_item_dict(args, "find")
+    records = _load_records(database_path)
 
     def matches(record):
         for key, value in matcher.items():
@@ -123,22 +144,18 @@ def cmd_find(args):
 
 def cmd_add(args):
     database_path = Path(args.database_file)
-    item = load_item(args)
-    if not isinstance(item, dict):
-        print("Error: add item must be a JSON object")
-        sys.exit(1)
-    identity_field, identity_value = record_identity_value(item)
-    if not identity_field:
-        print("Error: add requires at least one of 'id' or 'linkedin_url'")
-        sys.exit(1)
+    item = _load_item_dict(args, "add")
+    _require_identity(item, "add")
 
-    records = load_json(database_path)
-    if records and not isinstance(records, list):
-        print("Error: database file must be a JSON array")
+    records = _load_records(database_path)
+
+    url = normalize_url(item.get("linkedin_url"))
+    if url and url in build_known_urls():
+        print(f"Error: record with URL '{url}' already exists in the pipeline")
         sys.exit(1)
 
     records.append(item)
-    database_path.write_text(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(database_path, records)
 
     output = json.dumps(item, indent=2, ensure_ascii=False)
     if args.output_file:
@@ -153,15 +170,8 @@ def cmd_delete(args):
         print(f"Error: {database_path} not found")
         sys.exit(1)
 
-    item = load_item(args)
-    if not isinstance(item, dict):
-        print("Error: delete item must be a JSON object")
-        sys.exit(1)
-
-    identity_field, identity_value = record_identity_value(item)
-    if not identity_field:
-        print("Error: delete requires at least one of 'id' or 'linkedin_url'")
-        sys.exit(1)
+    item = _load_item_dict(args, "delete")
+    identity_field, identity_value = _require_identity(item, "delete")
 
     records = load_json(database_path)
     if not isinstance(records, list):
@@ -180,7 +190,7 @@ def cmd_delete(args):
         print(f"Error: no record found for {identity_field} '{identity_value}'")
         sys.exit(1)
 
-    database_path.write_text(json.dumps(kept, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(database_path, kept)
 
     output = json.dumps(deleted, indent=2, ensure_ascii=False)
     if args.output_file:
@@ -195,15 +205,8 @@ def cmd_update(args):
         print(f"Error: {database_path} not found")
         sys.exit(1)
 
-    item = load_item(args)
-    if not isinstance(item, dict):
-        print("Error: update item must be a JSON object")
-        sys.exit(1)
-
-    identity_field, identity_value = record_identity_value(item)
-    if not identity_field:
-        print("Error: update requires at least one of 'id' or 'linkedin_url'")
-        sys.exit(1)
+    item = _load_item_dict(args, "update")
+    identity_field, identity_value = _require_identity(item, "update")
 
     records = load_json(database_path)
     if not isinstance(records, list):
@@ -213,6 +216,9 @@ def cmd_update(args):
     updated = None
     for record in records:
         if record.get(identity_field) == identity_value:
+            unknown = [k for k in item if k not in record and k not in (identity_field,)]
+            if unknown:
+                print(f"Warning: updating unknown field(s): {', '.join(unknown)}")
             record.update(item)
             updated = record
             break
@@ -221,7 +227,7 @@ def cmd_update(args):
         print(f"Error: no record found for {identity_field} '{identity_value}'")
         sys.exit(1)
 
-    database_path.write_text(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(database_path, records)
 
     output = json.dumps(updated, indent=2, ensure_ascii=False)
     if args.output_file:
@@ -268,7 +274,7 @@ def cmd_shuffle(args):
         print("\n(dry run — no files modified)")
         return
 
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(path, data)
     print(f"Shuffled {len(data)} records in {path.name}.")
 
 
@@ -304,7 +310,7 @@ def cmd_intake(args):
         "target_file": str(path),
         "fields": {},
     }
-    output_path.write_text(json.dumps(pending, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(output_path, pending)
     print(f"\nWrote {output_path} — fill in fields, then run: jsoncrm apply_update {output_path}")
 
 
@@ -350,7 +356,7 @@ def cmd_top(args):
             "target_file": str(path),
             "fields": {},
         }
-        output_path.write_text(json.dumps(pending, indent=2, ensure_ascii=False) + "\n")
+        atomic_write_json(output_path, pending)
         print(
             f"Wrote {output_path} — fill in fields, then run: jsoncrm apply_update {output_path}",
             file=sys.stderr,
@@ -415,11 +421,14 @@ def cmd_merge(args):
 
     if added:
         merged = existing_leads + added
-        leads_path.write_text(json.dumps(merged, indent=2, ensure_ascii=False) + "\n")
+        atomic_write_json(leads_path, merged)
         print(f"\nWrote {len(merged)} records to {leads_path}")
 
-    source_path.write_text(json.dumps(unscored, indent=2, ensure_ascii=False) + "\n")
-    print(f"Updated {source_path.name}: {len(unscored)} unscored records remaining")
+    if unscored != source_records:
+        atomic_write_json(source_path, unscored)
+        print(f"Updated {source_path.name}: {len(unscored)} unscored records remaining")
+    else:
+        print(f"No changes to {source_path.name}")
 
 
 def cmd_deduplicate(args):
@@ -461,8 +470,11 @@ def cmd_deduplicate(args):
         print("\n(dry run — no files modified)")
         return
 
-    source_path.write_text(json.dumps(kept, indent=2, ensure_ascii=False) + "\n")
-    print(f"Updated {source_path.name}: {len(kept)} records remaining")
+    if kept != source_records:
+        atomic_write_json(source_path, kept)
+        print(f"Updated {source_path.name}: {len(kept)} records remaining")
+    else:
+        print(f"No changes to {source_path.name}")
 
 
 def cmd_filter_competitors(args):
@@ -518,8 +530,11 @@ def cmd_filter_competitors(args):
         print("\n(dry run — no files modified)")
         return
 
-    source_path.write_text(json.dumps(kept, indent=2, ensure_ascii=False) + "\n")
-    print(f"Updated {source_path.name}: {len(kept)} records remaining")
+    if kept != source_records:
+        atomic_write_json(source_path, kept)
+        print(f"Updated {source_path.name}: {len(kept)} records remaining")
+    else:
+        print(f"No changes to {source_path.name}")
 
 
 PROMOTE_MAP = {
@@ -575,8 +590,8 @@ def cmd_promote(args):
         sys.exit(1)
 
     dst_data.append(record)
-    src_path.write_text(json.dumps(remaining, indent=2, ensure_ascii=False) + "\n")
-    dst_path.write_text(json.dumps(dst_data, indent=2, ensure_ascii=False) + "\n")
+    atomic_write_json(src_path, remaining)
+    atomic_write_json(dst_path, dst_data)
 
     name = record.get("name", args.linkedin_url)
     print(f"Promoted: {name}  {src_path.name} → {dst_path.name}")
@@ -737,6 +752,7 @@ def main():
     # filter-competitors
     p_filter_competitors = subparsers.add_parser(
         "filter-competitors",
+        aliases=["filter-blocklist"],
         help="Remove records from a source file if they match crm/competitors.json.",
     )
     p_filter_competitors.add_argument("file", help="Path to source JSON file")
@@ -813,7 +829,7 @@ def main():
         cmd_merge(args)
     elif args.command == "deduplicate":
         cmd_deduplicate(args)
-    elif args.command == "filter-competitors":
+    elif args.command in ("filter-competitors", "filter-blocklist"):
         cmd_filter_competitors(args)
     elif args.command == "promote":
         cmd_promote(args)

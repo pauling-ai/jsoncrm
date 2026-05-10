@@ -276,8 +276,7 @@ def test_find_record_by_url(tmp_path, monkeypatch):
     db.write_text(
         json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}])
     )
-    monkeypatch.chdir(tmp_path)
-    matches = find_record("https://linkedin.com/in/alice")
+    matches = find_record("https://linkedin.com/in/alice", target_file=str(db))
     assert len(matches) == 1
     assert matches[0][3]["name"] == "Alice"
 
@@ -285,8 +284,7 @@ def test_find_record_by_url(tmp_path, monkeypatch):
 def test_find_record_not_found(tmp_path, monkeypatch):
     db = tmp_path / "db.json"
     db.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
-    monkeypatch.chdir(tmp_path)
-    assert find_record("https://linkedin.com/in/bob") == []
+    assert find_record("https://linkedin.com/in/bob", target_file=str(db)) == []
 
 
 def test_find_record_target_file(tmp_path):
@@ -300,25 +298,23 @@ def test_find_record_target_file(tmp_path):
 
 # --- apply_updates ---
 
-def test_apply_updates_single_match(tmp_path, monkeypatch, capsys):
+def test_apply_updates_single_match(tmp_path, capsys):
     db = tmp_path / "db.json"
     db.write_text(
         json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice", "company": "Old"}])
     )
-    monkeypatch.chdir(tmp_path)
-    apply_updates("https://linkedin.com/in/alice", {"company": "New"})
+    apply_updates("https://linkedin.com/in/alice", {"company": "New"}, target_file=str(db))
     data = json.loads(db.read_text())
     assert data[0]["company"] == "New"
     captured = capsys.readouterr()
     assert "Saved: Alice" in captured.out
 
 
-def test_apply_updates_no_match_exits(tmp_path, monkeypatch):
+def test_apply_updates_no_match_exits(tmp_path):
     db = tmp_path / "db.json"
     db.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
-    monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit) as exc:
-        apply_updates("https://linkedin.com/in/bob", {"company": "New"})
+        apply_updates("https://linkedin.com/in/bob", {"company": "New"}, target_file=str(db))
     assert exc.value.code == 1
 
 

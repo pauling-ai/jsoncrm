@@ -1,6 +1,7 @@
 """Utility functions for jsoncrm."""
 
 import json
+import os
 import re
 import sys
 import unicodedata
@@ -17,6 +18,14 @@ def load_json(path):
     if path.exists():
         return json.loads(path.read_text())
     return []
+
+
+def atomic_write_json(path, data):
+    """Write *data* to *path* atomically via a temp file + os.replace()."""
+    path = Path(path)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def build_known_urls(*, leads_file=None, prospects_file=None, customers_file=None):
@@ -93,10 +102,11 @@ def search_competitors(query, person=False, company=False):
         return []
     data = json.loads(COMPETITORS_FILE.read_text())
     q = query.lower()
+    q_norm = normalize_company_name(query)
     hits = []
     if not person:
         for c in iter_competitor_entries(data, COMPETITOR_COMPANY_KEYS):
-            if q in (c.get("name") or "").lower() or q in (c.get("url") or "").lower():
+            if q_norm in normalize_company_name(c.get("name")) or q in (c.get("url") or "").lower():
                 hits.append(("company", c))
     if not company:
         for p in iter_competitor_entries(data, COMPETITOR_PERSON_KEYS):
@@ -112,7 +122,11 @@ def normalize_url(url):
 def find_record(target_url, target_file=None):
     norm = normalize_url(target_url)
     matches = []
-    paths = [Path(target_file)] if target_file else sorted(Path(".").glob("*.json"))
+    if target_file:
+        paths = [Path(target_file)]
+    else:
+        # Search configured pipeline files instead of globbing all *.json
+        paths = [path for _, path in PIPELINE_FILES]
     for path in paths:
         try:
             data = json.loads(path.read_text())
@@ -138,7 +152,7 @@ def apply_updates(target_url, updates, target_file=None):
 
     for path, data, idx, record in matches:
         record.update(updates)
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        atomic_write_json(path, data)
         name = record.get("name", target_url)
         changed = ", ".join(f"{k}={v!r}" for k, v in updates.items())
         print(f"Saved: {name}  [{path.name}]  —  {changed}")
