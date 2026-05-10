@@ -1,0 +1,26 @@
+{
+  "name": "test-crm",
+  "pipeline": {
+    "stages": [
+      {"name": "leads", "file": "leads.json"},
+      {"name": "prospects", "file": "prospects.json"},
+      {"name": "customers", "file": "customers.json"}
+    ],
+    "transitions": {
+      "leads": ["prospects"],
+      "prospects": ["customers"]
+    }
+  },
+  "identity": {
+    "primary": "linkedin_url",
+    "fallback": ["id"]
+  },
+  "scores": {
+    "order": ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"],
+    "disqualified": "❌"
+  },
+  "blocklist": {
+    "file": "competitors.json",
+    "match_fields": ["company", "name"]
+  }
+}

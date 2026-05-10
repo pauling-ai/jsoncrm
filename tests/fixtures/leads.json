@@ -1,0 +1,55 @@
+[
+  {
+    "name": "Martin Bonde",
+    "position": "Head of Research",
+    "company": "Pfizer",
+    "linkedin_url": "https://www.linkedin.com/in/martin-bonde/",
+    "connected": false,
+    "email": "martin@example.com",
+    "contacted_at": null,
+    "source": "manual",
+    "added": "2026-01-01",
+    "score": "⭐⭐⭐⭐",
+    "notes": "original notes"
+  },
+  {
+    "name": "Schrödinger Employee",
+    "position": "Scientist",
+    "company": "Schrödinger",
+    "linkedin_url": "https://www.linkedin.com/in/schrodinger-employee/",
+    "connected": false,
+    "email": "employee@schrodinger.com",
+    "contacted_at": null,
+    "source": "manual",
+    "added": "2026-01-02",
+    "score": "⭐⭐",
+    "notes": ""
+  },
+  {
+    "name": "Alice Testerson",
+    "position": "Head of Computational Chemistry",
+    "company": "TestPharma Inc",
+    "linkedin_url": "https://www.linkedin.com/in/alice-testerson/",
+    "connected": false,
+    "email": "alice@testpharma.com",
+    "contacted_at": null,
+    "source": "manual",
+    "added": "2026-01-01",
+    "score": "⭐⭐⭐⭐",
+    "notes": "original notes"
+  },
+  {
+    "name": "Bob Labguy",
+    "id": "bob-1",
+    "position": "Senior Scientist",
+    "company": "MockBio Labs",
+    "linkedin_url": "https://www.linkedin.com/in/bob-labguy/",
+    "connected": true,
+    "email": null,
+    "contacted_at": null,
+    "source": "post_likers",
+    "added": "2026-02-15",
+    "score": null,
+    "notes": ""
+  }
+]

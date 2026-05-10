@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Customer One",
+    "position": "CTO",
+    "company": "BigPharma",
+    "linkedin_url": "https://www.linkedin.com/in/customer-one/",
+    "connected": true,
+    "email": "cto@bigpharma.com",
+    "contacted_at": "2026-01-15",
+    "source": "manual",
+    "added": "2025-12-01",
+    "score": null,
+    "notes": "",
+    "paid": true
+  }
+]

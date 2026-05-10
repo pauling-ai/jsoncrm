@@ -1,0 +1,12 @@
+{
+  "companies": [
+    {"name": "Schrödinger", "role": "Comp chemistry", "url": "https://www.linkedin.com/company/schr-dinger/"}
+  ],
+  "people": [
+    {"name": "David van der Spoel", "role": "Scientist", "url": "https://www.linkedin.com/in/david-van-der-spoel-4053372/"}
+  ],
+  "skipped_companies": [],
+  "skipped_people": [
+    {"name": "Noisy Person", "url": "https://www.linkedin.com/in/noisy-person/"}
+  ]
+}

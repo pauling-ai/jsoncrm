@@ -1,0 +1,15 @@
+[
+  {
+    "name": "Prospect One",
+    "position": "Director",
+    "company": "Pfizer",
+    "linkedin_url": "https://www.linkedin.com/in/prospect-one/",
+    "connected": true,
+    "email": "prospect@example.com",
+    "contacted_at": "2026-03-01",
+    "source": "manual",
+    "added": "2026-02-01",
+    "score": "⭐⭐⭐",
+    "notes": ""
+  }
+]

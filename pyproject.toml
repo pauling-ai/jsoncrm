@@ -1,0 +1,21 @@
+[project]
+name = "jsoncrm"
+version = "0.1.0"
+description = "A generic JSON-file CRM pipeline tool"
+license = "AGPL-3.0-only"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+jsoncrm = "jsoncrm.tool:main"
+
+[project.optional-dependencies]
+web = ["fastapi", "uvicorn"]
+dev = ["pytest"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.package-dir]
+jsoncrm = "src"
