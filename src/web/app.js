@@ -1,337 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>jsoncrm</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+import { esc, buildPageUrl, coerceValue, formatCellValue, highlightMatch, isCompetitor, renderPaginationHTML } from "./crm.js";
 
-  :root {
-    --bg: #f9f9f8;
-    --surface: #ffffff;
-    --border: #e0deda;
-    --border-strong: #c8c6c0;
-    --text: #1a1a18;
-    --text-muted: #6b6a65;
-    --accent: #4f46e5;
-    --accent-hover: #4338ca;
-    --accent-light: #eef2ff;
-    --cell-sel: #dbeafe;
-    --cell-sel-border: #3b82f6;
-    --danger: #dc2626;
-    --danger-light: #fef2f2;
-    --success: #16a34a;
-    --success-light: #f0fdf4;
-    --header-bg: #f1f0ec;
-    --row-num: #9b9a94;
-    --added: #dcfce7;
-    --deleted: #fee2e2;
-    --modified: #fef9c3;
-    --row-hover: #f5f5f3;
-    --star: #ca8a04;
-    --disqualified: #fca5a5;
-    --warning: #f59e0b;
-  }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1a1a18;
-      --surface: #242422;
-      --border: #38382e;
-      --border-strong: #4a4a40;
-      --text: #e8e6de;
-      --text-muted: #8a8880;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --accent-light: #1e1b4b;
-      --cell-sel: #1e3a5f;
-      --cell-sel-border: #60a5fa;
-      --danger: #f87171;
-      --danger-light: #2d1515;
-      --success: #4ade80;
-      --success-light: #14291e;
-      --header-bg: #2a2a26;
-      --row-num: #5a5a52;
-      --added: #14291e;
-      --deleted: #2d1515;
-      --modified: #2d2a10;
-      --row-hover: #2a2a26;
-      --star: #fbbf24;
-      --disqualified: #7f1d1d;
-      --warning: #d97706;
-    }
-  }
-
-  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }
-
-  /* Toolbar */
-  #toolbar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 12px; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  #toolbar .spacer { flex: 1; }
-  #row-count { font-size: 12px; color: var(--text-muted); }
-
-  button {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 12px; border: 1px solid var(--border-strong);
-    border-radius: 6px; background: var(--surface); color: var(--text);
-    font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
-    transition: background 0.12s;
-  }
-  button:hover { background: var(--header-bg); }
-  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
-  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-  button.danger { color: var(--danger); border-color: var(--danger); }
-  button.danger:hover { background: var(--danger-light); }
-  button:disabled { opacity: 0.4; cursor: default; }
-
-  /* Stage tabs */
-  #stage-tabs {
-    display: flex; gap: 2px;
-    padding: 4px 12px 0; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-  .stage-tab {
-    padding: 6px 14px; border: 1px solid transparent;
-    border-bottom: none; border-radius: 6px 6px 0 0;
-    background: transparent; color: var(--text-muted);
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .stage-tab:hover { background: var(--row-hover); color: var(--text); }
-  .stage-tab.active {
-    background: var(--bg); color: var(--text);
-    border-color: var(--border-strong); border-bottom-color: var(--bg);
-    margin-bottom: -1px; z-index: 2; position: relative;
-  }
-  .stage-tab .badge {
-    font-size: 10px; font-weight: 600;
-    padding: 1px 5px; border-radius: 10px;
-    background: var(--border); color: var(--text-muted);
-  }
-  .stage-tab.active .badge { background: var(--accent-light); color: var(--accent); }
-
-  /* Search */
-  #search { padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12px; width: 180px; }
-  #search:focus { outline: none; border-color: var(--accent); }
-
-  /* Table wrapper */
-  #table-wrap {
-    flex: 1; overflow: auto; position: relative;
-    height: calc(100vh - 86px);
-  }
-
-  table { border-collapse: collapse; min-width: 100%; table-layout: auto; }
-
-  /* Header */
-  thead th {
-    position: sticky; top: 0; z-index: 10;
-    background: var(--header-bg); border-bottom: 2px solid var(--border-strong);
-    border-right: 1px solid var(--border);
-    padding: 0; user-select: none;
-  }
-  thead th .th-inner {
-    display: flex; align-items: center; gap: 4px;
-    padding: 6px 10px; min-width: 100px; white-space: nowrap;
-    font-weight: 600; font-size: 11px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-muted);
-  }
-  thead th.row-num-col .th-inner { min-width: 36px; justify-content: center; }
-  thead th .sort-btn { cursor: pointer; opacity: 0.5; font-size: 10px; }
-  thead th .sort-btn:hover { opacity: 1; }
-
-  /* Resize handle */
-  thead th .resize-handle {
-    position: absolute; right: 0; top: 0; bottom: 0; width: 5px;
-    cursor: col-resize; background: transparent;
-  }
-  thead th .resize-handle:hover, thead th.resizing .resize-handle { background: var(--accent); }
-
-  /* Rows */
-  tbody tr { border-bottom: 1px solid var(--border); }
-  tbody tr:hover td { background: var(--row-hover); }
-  tbody tr.added td { background: var(--added) !important; }
-  tbody tr.deleted td { background: var(--deleted) !important; opacity: 0.6; }
-  tbody tr.modified td { background: var(--modified) !important; }
-  tbody tr.disqualified td { background: var(--disqualified) !important; }
-  tbody tr.competitor td .cell-display { color: var(--danger); }
-
-  td {
-    border-right: 1px solid var(--border);
-    padding: 0; vertical-align: top; position: relative;
-    background: var(--surface);
-  }
-  td.row-num {
-    color: var(--row-num); text-align: center; font-size: 11px;
-    padding: 6px 4px; width: 36px; min-width: 36px; max-width: 36px;
-    cursor: pointer; user-select: none;
-    position: sticky; left: 0; z-index: 2; background: var(--header-bg);
-    border-right: 2px solid var(--border-strong);
-  }
-  td.row-num:hover { background: var(--accent-light); color: var(--accent); }
-
-  /* Cell content */
-  td .cell-display {
-    padding: 5px 10px; min-height: 28px; display: block;
-    white-space: pre; overflow: hidden; text-overflow: ellipsis;
-    cursor: cell;
-    max-width: 400px;
-  }
-  td.selected { outline: 2px solid var(--cell-sel-border); outline-offset: -1px; background: var(--cell-sel) !important; }
-  td.selected .cell-display { background: var(--cell-sel); }
-
-  /* Inline editor */
-  td .cell-editor {
-    display: none; width: 100%; min-height: 28px;
-    padding: 5px 10px; border: none; outline: none;
-    background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px;
-    resize: none; overflow: hidden;
-  }
-  td.editing .cell-display { display: none; }
-  td.editing .cell-editor { display: block; }
-  td.editing { outline: 2px solid var(--accent); outline-offset: -1px; z-index: 5; }
-
-  /* Add row button */
-  #add-row-row td { padding: 4px 8px; background: var(--bg); border-right: none; }
-  #add-row-row button { font-size: 12px; border-style: dashed; }
-
-  /* Pipeline actions */
-  .pipeline-actions {
-    display: flex; gap: 4px;
-    padding: 3px 6px;
-  }
-  .pipeline-actions button {
-    padding: 2px 6px; font-size: 10px; border-radius: 4px;
-  }
-
-  /* Modal */
-  #modal-overlay {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.45); z-index: 100;
-    align-items: center; justify-content: center;
-  }
-  #modal-overlay.open { display: flex; }
-  #modal {
-    background: var(--surface); border-radius: 12px; border: 1px solid var(--border-strong);
-    width: 480px; max-width: 96vw; padding: 24px;
-  }
-  #modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-  #modal label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
-  #modal textarea, #modal input {
-    width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 6px;
-    background: var(--bg); color: var(--text); font-family: inherit; font-size: 13px; margin-bottom: 16px;
-  }
-  #modal textarea:focus, #modal input:focus { outline: none; border-color: var(--accent); }
-  #modal .diff-summary { background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
-  #modal .diff-summary span.added { color: var(--success); font-weight: 600; }
-  #modal .diff-summary span.modified { color: #ca8a04; font-weight: 600; }
-  #modal .diff-summary span.deleted { color: var(--danger); font-weight: 600; }
-  #modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
-
-  /* Toast */
-  #toast {
-    position: fixed; bottom: 20px; right: 20px;
-    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
-    background: var(--text); color: var(--bg);
-    opacity: 0; transform: translateY(8px);
-    transition: opacity 0.2s, transform 0.2s;
-    z-index: 200; pointer-events: none;
-  }
-  #toast.show { opacity: 1; transform: translateY(0); }
-  #toast.error { background: var(--danger); color: #fff; }
-  #toast.success { background: var(--success); color: #fff; }
-  #toast.info { background: var(--accent); color: #fff; }
-
-  /* Status bar */
-  #statusbar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    padding: 3px 12px; background: var(--accent); color: #fff;
-    font-size: 11px; display: flex; align-items: center; gap: 12px;
-    transform: translateY(100%); transition: transform 0.2s;
-    z-index: 50;
-  }
-  #statusbar.show { transform: translateY(0); }
-  #cell-ref { font-weight: 600; min-width: 60px; }
-  #cell-val { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-  .col-type { font-size: 9px; font-weight: 400; opacity: 0.6; margin-left: 3px; }
-  .null-val { color: var(--text-muted); font-style: italic; }
-  .score-stars { color: var(--star); font-size: 14px; letter-spacing: -1px; }
-  .score-x { color: var(--danger); font-weight: 600; }
-  .competitor-badge { font-size: 9px; background: var(--danger-light); color: var(--danger); padding: 1px 4px; border-radius: 4px; margin-left: 4px; font-weight: 600; }
-  mark { background: #fde68a; color: inherit; border-radius: 2px; }
-
-  /* Pagination */
-  #pagination {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px; background: var(--surface);
-    border-top: 1px solid var(--border);
-    flex-shrink: 0; font-size: 12px;
-  }
-  #pagination button {
-    padding: 4px 10px; font-size: 12px;
-  }
-  #pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
-  #pagination input {
-    width: 40px; text-align: center;
-    padding: 3px 4px; border: 1px solid var(--border-strong); border-radius: 4px;
-    background: var(--bg); color: var(--text); font-size: 12px;
-  }
-
-  /* Spinner */
-  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-</style>
-</head>
-<body>
-
-<div id="toolbar">
-  <span style="font-weight:700;font-size:14px;color:var(--accent)">jsoncrm</span>
-  <span style="color:var(--border-strong)">|</span>
-  <input id="search" type="text" placeholder="Search…" oninput="applySearch(this.value)">
-  <span class="spacer"></span>
-  <span id="row-count"></span>
-  <button onclick="addRow()">＋ Add row</button>
-  <button onclick="deleteSelectedRow()" class="danger" id="btn-delete" disabled>✕ Delete</button>
-  <button onclick="revertChanges()" id="btn-revert" disabled>↩ Revert</button>
-  <button onclick="openSaveModal()" class="primary" id="btn-pr" style="display:none">↑ Open PR…</button>
-</div>
-
-<div id="stage-tabs"></div>
-
-<div id="table-wrap">
-  <table id="tbl">
-    <thead id="thead"><tr id="header-row"></tr></thead>
-    <tbody id="tbody"></tbody>
-  </table>
-</div>
-
-<div id="pagination"></div>
-
-<!-- PR modal -->
-<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div id="modal">
-    <h2>Open pull request</h2>
-    <div class="diff-summary" id="diff-summary"></div>
-    <label for="pr-title">PR title</label>
-    <input id="pr-title" type="text" placeholder="Update CRM">
-    <label for="pr-body">Description (optional)</label>
-    <textarea id="pr-body" rows="3" placeholder="What changed and why…"></textarea>
-    <div class="btn-row">
-      <button onclick="closeModal()">Cancel</button>
-      <button class="primary" id="btn-submit-pr" onclick="submitPR()">Open PR</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-<div id="statusbar"><span id="cell-ref"></span><span id="cell-val"></span></div>
-
-<script>
 // ── State ─────────────────────────────────────────────────────────────────────
 let config = {};
 let stages = [];
@@ -376,16 +44,15 @@ async function loadStage(stage) {
 }
 
 async function fetchPage() {
-  const params = new URLSearchParams();
-  params.set("limit", String(pageLimit));
-  params.set("offset", String(currentOffset));
-  if (searchQuery) params.set("q", searchQuery);
-  if (currentSortKey) {
-    params.set("sort_key", currentSortKey);
-    params.set("sort_dir", currentSortDir);
-  }
+  const url = buildPageUrl(activeStage, {
+    offset: currentOffset,
+    limit: pageLimit,
+    q: searchQuery,
+    sortKey: currentSortKey,
+    sortDir: currentSortDir,
+  });
   const [dataRes, schemaRes] = await Promise.all([
-    fetch(`/api/data/${activeStage}?${params}`).then(r => r.json()),
+    fetch(url).then(r => r.json()),
     fetch(`/api/schema/${activeStage}`).then(r => r.json()),
   ]);
   columns[activeStage] = Object.entries(schemaRes.columns).map(([key, type]) => ({ key, type }));
@@ -471,10 +138,8 @@ function renderBody() {
     if (score === "❌") tr.classList.add("disqualified");
 
     const company = row.company;
-    const isCompetitor = company && competitors.companies.some(c =>
-      c.name && company.toLowerCase().includes(c.name.toLowerCase())
-    );
-    if (isCompetitor) tr.classList.add("competitor");
+    const rowIsCompetitor = isCompetitor(company, competitors.companies);
+    if (rowIsCompetitor) tr.classList.add("competitor");
 
     const rnTd = document.createElement("td");
     rnTd.className = "row-num";
@@ -490,21 +155,13 @@ function renderBody() {
       const display = document.createElement("div");
       display.className = "cell-display";
 
-      if (col.key === "score" && (typeof val === "string") && val.startsWith("⭐")) {
-        display.innerHTML = `<span class="score-stars">${esc(val)}</span>`;
-      } else if (col.key === "score" && val === "❌") {
-        display.innerHTML = `<span class="score-x">${esc(val)}</span>`;
-      } else if (val === null || val === undefined) {
-        display.innerHTML = `<span class="null-val">null</span>`;
-      } else {
-        const str = String(val);
-        display.textContent = str;
-        if (q && str.toLowerCase().includes(q)) {
-          display.innerHTML = str.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), "gi"), m => `<mark>${m}</mark>`);
-        }
+      const formatted = formatCellValue(val, col.key);
+      display.innerHTML = formatted.html;
+      if (q) {
+        display.innerHTML = highlightMatch(formatted.text, q);
       }
 
-      if (col.key === "company" && isCompetitor) {
+      if (col.key === "company" && rowIsCompetitor) {
         display.innerHTML += ` <span class="competitor-badge">COMPETITOR</span>`;
       }
 
@@ -564,16 +221,7 @@ function renderBody() {
 function renderPagination(total, offset, limit) {
   const container = document.getElementById("pagination");
   if (!container) return;
-  const start = total > 0 ? offset + 1 : 0;
-  const end = Math.min(offset + limit, total);
-  const pages = Math.max(1, Math.ceil(total / limit));
-  const currentPage = Math.floor(offset / limit) + 1;
-  container.innerHTML = `
-    <button onclick="goToPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>← Prev</button>
-    <span>Page <strong>${currentPage}</strong> of ${pages}</span>
-    <button onclick="goToPage(${currentPage + 1})" ${currentPage >= pages ? 'disabled' : ''}>Next →</button>
-    <span style="color:var(--text-muted)">Showing ${start}–${end} of ${total}</span>
-  `;
+  container.innerHTML = renderPaginationHTML(total, offset, limit);
 }
 
 function goToPage(pageNum) {
@@ -653,10 +301,7 @@ async function commitEdit(ri, ci, td, rawVal) {
   let val = rawVal;
   if (val === "" && (rows[activeStage][localIdx][col.key] === null || rows[activeStage][localIdx][col.key] === undefined)) return;
 
-  if (col.type === "int") val = rawVal === "" ? null : parseInt(rawVal, 10);
-  else if (col.type === "float") val = rawVal === "" ? null : parseFloat(rawVal);
-  else if (col.type === "bool") val = rawVal === "" ? null : rawVal === "true";
-  else val = rawVal === "" ? null : rawVal;
+  val = coerceValue(rawVal, col.type);
 
   const oldVal = rows[activeStage][localIdx][col.key];
   if (JSON.stringify(val) === JSON.stringify(oldVal)) return;
@@ -886,6 +531,15 @@ document.addEventListener("keydown", e => {
 function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 init().catch(e => { document.body.innerHTML = `<div style="padding:20px;color:var(--danger)">Error: ${e.message}</div>`; });
-</script>
-</body>
-</html>
+
+// Expose functions needed by inline HTML handlers
+window.applySearch = applySearch;
+window.addRow = addRow;
+window.deleteSelectedRow = deleteSelectedRow;
+window.revertChanges = revertChanges;
+window.openSaveModal = openSaveModal;
+window.closeModal = closeModal;
+window.submitPR = submitPR;
+window.goToPage = goToPage;
+window.toggleSort = toggleSort;
+

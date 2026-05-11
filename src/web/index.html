@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jsoncrm</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<div id="toolbar">
+  <span style="font-weight:700;font-size:14px;color:var(--accent)">jsoncrm</span>
+  <span style="color:var(--border-strong)">|</span>
+  <input id="search" type="text" placeholder="Search…" oninput="applySearch(this.value)">
+  <span class="spacer"></span>
+  <span id="row-count"></span>
+  <button onclick="addRow()">＋ Add row</button>
+  <button onclick="deleteSelectedRow()" class="danger" id="btn-delete" disabled>✕ Delete</button>
+  <button onclick="revertChanges()" id="btn-revert" disabled>↩ Revert</button>
+  <button onclick="openSaveModal()" class="primary" id="btn-pr" style="display:none">↑ Open PR…</button>
+</div>
+
+<div id="stage-tabs"></div>
+
+<div id="table-wrap">
+  <table id="tbl">
+    <thead id="thead"><tr id="header-row"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div id="pagination"></div>
+
+<!-- PR modal -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h2>Open pull request</h2>
+    <div class="diff-summary" id="diff-summary"></div>
+    <label for="pr-title">PR title</label>
+    <input id="pr-title" type="text" placeholder="Update CRM">
+    <label for="pr-body">Description (optional)</label>
+    <textarea id="pr-body" rows="3" placeholder="What changed and why…"></textarea>
+    <div class="btn-row">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" id="btn-submit-pr" onclick="submitPR()">Open PR</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="statusbar"><span id="cell-ref"></span><span id="cell-val"></span></div>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

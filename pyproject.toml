@@ -21,4 +21,4 @@ build-backend = "setuptools.build_meta"
 jsoncrm = "src"
 
 [tool.setuptools.package-data]
-jsoncrm = ["*.html"]
+jsoncrm = ["*.html", "web/*"]

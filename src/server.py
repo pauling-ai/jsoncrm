@@ -13,7 +13,8 @@ from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 import jsoncrm.schema as schema
@@ -132,17 +133,23 @@ def create_app(
     # Routes
     # -------------------------------------------------------------------
 
-    @app.get("/", response_class=HTMLResponse)
-    def ui() -> str:
-        html_path = Path(__file__).parent / "server_ui.html"
-        if html_path.exists():
-            return html_path.read_text(encoding="utf-8")
-        # Fallback — look in package resources
+    # Resolve static files directory
+    static_dir = Path(__file__).parent / "web"
+    if not static_dir.exists():
         try:
             import importlib.resources
-            return importlib.resources.files("jsoncrm").joinpath("server_ui.html").read_text(encoding="utf-8")
+            static_dir = importlib.resources.files("jsoncrm") / "web"
         except Exception:
-            raise HTTPException(status_code=500, detail="UI file not found")
+            static_dir = None
+
+    if static_dir and Path(str(static_dir)).exists():
+        app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+    @app.get("/")
+    def ui():
+        if static_dir and Path(str(static_dir)).exists():
+            return FileResponse(str(Path(str(static_dir)) / "index.html"))
+        raise HTTPException(status_code=500, detail="UI files not found")
 
     @app.get("/api/config")
     def get_config() -> dict:
