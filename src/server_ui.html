@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jsoncrm</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f9f9f8;
+    --surface: #ffffff;
+    --border: #e0deda;
+    --border-strong: #c8c6c0;
+    --text: #1a1a18;
+    --text-muted: #6b6a65;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-light: #eef2ff;
+    --cell-sel: #dbeafe;
+    --cell-sel-border: #3b82f6;
+    --danger: #dc2626;
+    --danger-light: #fef2f2;
+    --success: #16a34a;
+    --success-light: #f0fdf4;
+    --header-bg: #f1f0ec;
+    --row-num: #9b9a94;
+    --added: #dcfce7;
+    --deleted: #fee2e2;
+    --modified: #fef9c3;
+    --row-hover: #f5f5f3;
+    --star: #ca8a04;
+    --disqualified: #fca5a5;
+    --warning: #f59e0b;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #242422;
+      --border: #38382e;
+      --border-strong: #4a4a40;
+      --text: #e8e6de;
+      --text-muted: #8a8880;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --accent-light: #1e1b4b;
+      --cell-sel: #1e3a5f;
+      --cell-sel-border: #60a5fa;
+      --danger: #f87171;
+      --danger-light: #2d1515;
+      --success: #4ade80;
+      --success-light: #14291e;
+      --header-bg: #2a2a26;
+      --row-num: #5a5a52;
+      --added: #14291e;
+      --deleted: #2d1515;
+      --modified: #2d2a10;
+      --row-hover: #2a2a26;
+      --star: #fbbf24;
+      --disqualified: #7f1d1d;
+      --warning: #d97706;
+    }
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; }
+
+  /* Toolbar */
+  #toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #toolbar .spacer { flex: 1; }
+  #row-count { font-size: 12px; color: var(--text-muted); }
+
+  button {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border: 1px solid var(--border-strong);
+    border-radius: 6px; background: var(--surface); color: var(--text);
+    font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap;
+    transition: background 0.12s;
+  }
+  button:hover { background: var(--header-bg); }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  button.danger:hover { background: var(--danger-light); }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  /* Stage tabs */
+  #stage-tabs {
+    display: flex; gap: 2px;
+    padding: 4px 12px 0; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stage-tab {
+    padding: 6px 14px; border: 1px solid transparent;
+    border-bottom: none; border-radius: 6px 6px 0 0;
+    background: transparent; color: var(--text-muted);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .stage-tab:hover { background: var(--row-hover); color: var(--text); }
+  .stage-tab.active {
+    background: var(--bg); color: var(--text);
+    border-color: var(--border-strong); border-bottom-color: var(--bg);
+    margin-bottom: -1px; z-index: 2; position: relative;
+  }
+  .stage-tab .badge {
+    font-size: 10px; font-weight: 600;
+    padding: 1px 5px; border-radius: 10px;
+    background: var(--border); color: var(--text-muted);
+  }
+  .stage-tab.active .badge { background: var(--accent-light); color: var(--accent); }
+
+  /* Search */
+  #search { padding: 4px 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--bg); color: var(--text); font-size: 12px; width: 180px; }
+  #search:focus { outline: none; border-color: var(--accent); }
+
+  /* Table wrapper */
+  #table-wrap {
+    flex: 1; overflow: auto; position: relative;
+    height: calc(100vh - 86px);
+  }
+
+  table { border-collapse: collapse; min-width: 100%; table-layout: auto; }
+
+  /* Header */
+  thead th {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--header-bg); border-bottom: 2px solid var(--border-strong);
+    border-right: 1px solid var(--border);
+    padding: 0; user-select: none;
+  }
+  thead th .th-inner {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 10px; min-width: 100px; white-space: nowrap;
+    font-weight: 600; font-size: 11px; letter-spacing: 0.03em; text-transform: uppercase; color: var(--text-muted);
+  }
+  thead th.row-num-col .th-inner { min-width: 36px; justify-content: center; }
+  thead th .sort-btn { cursor: pointer; opacity: 0.5; font-size: 10px; }
+  thead th .sort-btn:hover { opacity: 1; }
+
+  /* Resize handle */
+  thead th .resize-handle {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 5px;
+    cursor: col-resize; background: transparent;
+  }
+  thead th .resize-handle:hover, thead th.resizing .resize-handle { background: var(--accent); }
+
+  /* Rows */
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:hover td { background: var(--row-hover); }
+  tbody tr.added td { background: var(--added) !important; }
+  tbody tr.deleted td { background: var(--deleted) !important; opacity: 0.6; }
+  tbody tr.modified td { background: var(--modified) !important; }
+  tbody tr.disqualified td { background: var(--disqualified) !important; }
+  tbody tr.competitor td .cell-display { color: var(--danger); }
+
+  td {
+    border-right: 1px solid var(--border);
+    padding: 0; vertical-align: top; position: relative;
+    background: var(--surface);
+  }
+  td.row-num {
+    color: var(--row-num); text-align: center; font-size: 11px;
+    padding: 6px 4px; width: 36px; min-width: 36px; max-width: 36px;
+    cursor: pointer; user-select: none;
+    position: sticky; left: 0; z-index: 2; background: var(--header-bg);
+    border-right: 2px solid var(--border-strong);
+  }
+  td.row-num:hover { background: var(--accent-light); color: var(--accent); }
+
+  /* Cell content */
+  td .cell-display {
+    padding: 5px 10px; min-height: 28px; display: block;
+    white-space: pre; overflow: hidden; text-overflow: ellipsis;
+    cursor: cell;
+    max-width: 400px;
+  }
+  td.selected { outline: 2px solid var(--cell-sel-border); outline-offset: -1px; background: var(--cell-sel) !important; }
+  td.selected .cell-display { background: var(--cell-sel); }
+
+  /* Inline editor */
+  td .cell-editor {
+    display: none; width: 100%; min-height: 28px;
+    padding: 5px 10px; border: none; outline: none;
+    background: var(--surface); color: var(--text); font-family: inherit; font-size: 13px;
+    resize: none; overflow: hidden;
+  }
+  td.editing .cell-display { display: none; }
+  td.editing .cell-editor { display: block; }
+  td.editing { outline: 2px solid var(--accent); outline-offset: -1px; z-index: 5; }
+
+  /* Add row button */
+  #add-row-row td { padding: 4px 8px; background: var(--bg); border-right: none; }
+  #add-row-row button { font-size: 12px; border-style: dashed; }
+
+  /* Pipeline actions */
+  .pipeline-actions {
+    display: flex; gap: 4px;
+    padding: 3px 6px;
+  }
+  .pipeline-actions button {
+    padding: 2px 6px; font-size: 10px; border-radius: 4px;
+  }
+
+  /* Modal */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal {
+    background: var(--surface); border-radius: 12px; border: 1px solid var(--border-strong);
+    width: 480px; max-width: 96vw; padding: 24px;
+  }
+  #modal h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  #modal label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+  #modal textarea, #modal input {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: 6px;
+    background: var(--bg); color: var(--text); font-family: inherit; font-size: 13px; margin-bottom: 16px;
+  }
+  #modal textarea:focus, #modal input:focus { outline: none; border-color: var(--accent); }
+  #modal .diff-summary { background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px; line-height: 1.8; }
+  #modal .diff-summary span.added { color: var(--success); font-weight: 600; }
+  #modal .diff-summary span.modified { color: #ca8a04; font-weight: 600; }
+  #modal .diff-summary span.deleted { color: var(--danger); font-weight: 600; }
+  #modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 20px; right: 20px;
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    background: var(--text); color: var(--bg);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 200; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translateY(0); }
+  #toast.error { background: var(--danger); color: #fff; }
+  #toast.success { background: var(--success); color: #fff; }
+  #toast.info { background: var(--accent); color: #fff; }
+
+  /* Status bar */
+  #statusbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 3px 12px; background: var(--accent); color: #fff;
+    font-size: 11px; display: flex; align-items: center; gap: 12px;
+    transform: translateY(100%); transition: transform 0.2s;
+    z-index: 50;
+  }
+  #statusbar.show { transform: translateY(0); }
+  #cell-ref { font-weight: 600; min-width: 60px; }
+  #cell-val { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .col-type { font-size: 9px; font-weight: 400; opacity: 0.6; margin-left: 3px; }
+  .null-val { color: var(--text-muted); font-style: italic; }
+  .score-stars { color: var(--star); font-size: 14px; letter-spacing: -1px; }
+  .score-x { color: var(--danger); font-weight: 600; }
+  .competitor-badge { font-size: 9px; background: var(--danger-light); color: var(--danger); padding: 1px 4px; border-radius: 4px; margin-left: 4px; font-weight: 600; }
+  mark { background: #fde68a; color: inherit; border-radius: 2px; }
+
+  /* Pagination */
+  #pagination {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0; font-size: 12px;
+  }
+  #pagination button {
+    padding: 4px 10px; font-size: 12px;
+  }
+  #pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
+  #pagination input {
+    width: 40px; text-align: center;
+    padding: 3px 4px; border: 1px solid var(--border-strong); border-radius: 4px;
+    background: var(--bg); color: var(--text); font-size: 12px;
+  }
+
+  /* Spinner */
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span style="font-weight:700;font-size:14px;color:var(--accent)">jsoncrm</span>
+  <span style="color:var(--border-strong)">|</span>
+  <input id="search" type="text" placeholder="Search…" oninput="applySearch(this.value)">
+  <span class="spacer"></span>
+  <span id="row-count"></span>
+  <button onclick="addRow()">＋ Add row</button>
+  <button onclick="deleteSelectedRow()" class="danger" id="btn-delete" disabled>✕ Delete</button>
+  <button onclick="revertChanges()" id="btn-revert" disabled>↩ Revert</button>
+  <button onclick="openSaveModal()" class="primary" id="btn-pr" style="display:none">↑ Open PR…</button>
+</div>
+
+<div id="stage-tabs"></div>
+
+<div id="table-wrap">
+  <table id="tbl">
+    <thead id="thead"><tr id="header-row"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div id="pagination"></div>
+
+<!-- PR modal -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <h2>Open pull request</h2>
+    <div class="diff-summary" id="diff-summary"></div>
+    <label for="pr-title">PR title</label>
+    <input id="pr-title" type="text" placeholder="Update CRM">
+    <label for="pr-body">Description (optional)</label>
+    <textarea id="pr-body" rows="3" placeholder="What changed and why…"></textarea>
+    <div class="btn-row">
+      <button onclick="closeModal()">Cancel</button>
+      <button class="primary" id="btn-submit-pr" onclick="submitPR()">Open PR</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="statusbar"><span id="cell-ref"></span><span id="cell-val"></span></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let config = {};
+let stages = [];
+let activeStage = "";
+let rows = {};           // { stage: [current page rows] }
+let columns = {};        // { stage: [{key, type}] }
+let competitors = { companies: [], people: [] };
+let searchQuery = "";
+let selectedCell = null; // { stage, ri, ci }
+let selectedRow = null;  // { stage, ri }
+let currentOffset = 0;
+let pageLimit = 100;
+let currentSortKey = "";
+let currentSortDir = "asc";
+let searchDebounceTimer = null;
+let resizing = null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  const [cfgRes, compRes] = await Promise.all([
+    fetch("/api/config").then(r => r.json()),
+    fetch("/api/competitors").then(r => r.json()),
+  ]);
+  config = cfgRes;
+  stages = config.stages.map(s => s.name);
+  competitors = compRes;
+  if (config.github_configured) {
+    document.getElementById("btn-pr").style.display = "inline-flex";
+  }
+  renderStageTabs();
+  await loadStage(stages[0]);
+}
+
+async function loadStage(stage) {
+  activeStage = stage;
+  currentOffset = 0;
+  searchQuery = "";
+  currentSortKey = "";
+  currentSortDir = "asc";
+  document.getElementById("search").value = "";
+  await fetchPage();
+}
+
+async function fetchPage() {
+  const params = new URLSearchParams();
+  params.set("limit", String(pageLimit));
+  params.set("offset", String(currentOffset));
+  if (searchQuery) params.set("q", searchQuery);
+  if (currentSortKey) {
+    params.set("sort_key", currentSortKey);
+    params.set("sort_dir", currentSortDir);
+  }
+  const [dataRes, schemaRes] = await Promise.all([
+    fetch(`/api/data/${activeStage}?${params}`).then(r => r.json()),
+    fetch(`/api/schema/${activeStage}`).then(r => r.json()),
+  ]);
+  columns[activeStage] = Object.entries(schemaRes.columns).map(([key, type]) => ({ key, type }));
+  rows[activeStage] = dataRes.rows;
+  renderStageTabs();
+  renderHeader();
+  renderBody();
+  renderPagination(dataRes.total_filtered, dataRes.offset, dataRes.limit);
+}
+
+// ── Stage tabs ────────────────────────────────────────────────────────────────
+function renderStageTabs() {
+  const container = document.getElementById("stage-tabs");
+  container.innerHTML = "";
+  stages.forEach(stage => {
+    const tab = document.createElement("div");
+    tab.className = "stage-tab" + (stage === activeStage ? " active" : "");
+    // Fetch total count from a lightweight endpoint would be better, but we can
+    // use the current page's total for the active stage and 0 for others
+    const count = rows[stage]?.length ?? 0;
+    tab.innerHTML = `${esc(stage)} <span class="badge">${count}</span>`;
+    tab.onclick = () => loadStage(stage);
+    container.appendChild(tab);
+  });
+}
+
+// ── Render header ─────────────────────────────────────────────────────────────
+function renderHeader() {
+  const hr = document.getElementById("header-row");
+  hr.innerHTML = "";
+  const rn = document.createElement("th");
+  rn.className = "row-num-col";
+  rn.innerHTML = `<div class="th-inner">#</div>`;
+  hr.appendChild(rn);
+
+  const cols = columns[activeStage] || [];
+  cols.forEach((col, ci) => {
+    const th = document.createElement("th");
+    th.dataset.ci = ci;
+    th.style.position = "relative";
+    const sortIndicator = currentSortKey === col.key ? (currentSortDir === "asc" ? "↑" : "↓") : "⇅";
+    th.innerHTML = `
+      <div class="th-inner">
+        ${esc(col.key)}<span class="col-type">${col.type}</span>
+        <span class="sort-btn" onclick="toggleSort(${ci})">${sortIndicator}</span>
+      </div>
+      <div class="resize-handle" data-ci="${ci}"></div>`;
+    hr.appendChild(th);
+
+    th.querySelector(".resize-handle").addEventListener("mousedown", e => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = th.offsetWidth;
+      th.classList.add("resizing");
+      function onMove(e) {
+        th.style.minWidth = Math.max(60, startW + e.clientX - startX) + "px";
+      }
+      function onUp() {
+        th.classList.remove("resizing");
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+      }
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    });
+  });
+}
+
+// ── Render body ───────────────────────────────────────────────────────────────
+function renderBody() {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  const q = searchQuery.toLowerCase();
+  const stageRows = rows[activeStage] || [];
+  const cols = columns[activeStage] || [];
+
+  stageRows.forEach((row, idx) => {
+    const ri = currentOffset + idx;
+    const tr = document.createElement("tr");
+    tr.dataset.ri = ri;
+
+    const score = row.score;
+    if (score === "❌") tr.classList.add("disqualified");
+
+    const company = row.company;
+    const isCompetitor = company && competitors.companies.some(c =>
+      c.name && company.toLowerCase().includes(c.name.toLowerCase())
+    );
+    if (isCompetitor) tr.classList.add("competitor");
+
+    const rnTd = document.createElement("td");
+    rnTd.className = "row-num";
+    rnTd.textContent = ri + 1;
+    rnTd.title = "Click to select row";
+    rnTd.onclick = () => selectRow(ri);
+    tr.appendChild(rnTd);
+
+    cols.forEach((col, ci) => {
+      const td = document.createElement("td");
+      td.dataset.ri = ri; td.dataset.ci = ci;
+      const val = row[col.key];
+      const display = document.createElement("div");
+      display.className = "cell-display";
+
+      if (col.key === "score" && (typeof val === "string") && val.startsWith("⭐")) {
+        display.innerHTML = `<span class="score-stars">${esc(val)}</span>`;
+      } else if (col.key === "score" && val === "❌") {
+        display.innerHTML = `<span class="score-x">${esc(val)}</span>`;
+      } else if (val === null || val === undefined) {
+        display.innerHTML = `<span class="null-val">null</span>`;
+      } else {
+        const str = String(val);
+        display.textContent = str;
+        if (q && str.toLowerCase().includes(q)) {
+          display.innerHTML = str.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), "gi"), m => `<mark>${m}</mark>`);
+        }
+      }
+
+      if (col.key === "company" && isCompetitor) {
+        display.innerHTML += ` <span class="competitor-badge">COMPETITOR</span>`;
+      }
+
+      display.onclick = () => selectCell(ri, ci);
+      display.ondblclick = () => startEdit(ri, ci, td);
+
+      const editor = document.createElement("textarea");
+      editor.className = "cell-editor";
+      editor.rows = 1;
+      editor.value = val === null || val === undefined ? "" : String(val);
+      editor.onkeydown = e => handleEditorKey(e, ri, ci, td);
+      editor.oninput = () => { editor.style.height = "auto"; editor.style.height = editor.scrollHeight + "px"; };
+      editor.onblur = () => commitEdit(ri, ci, td, editor.value);
+
+      td.appendChild(display);
+      td.appendChild(editor);
+      tr.appendChild(td);
+    });
+
+    const actionTd = document.createElement("td");
+    actionTd.style.borderRight = "none";
+    actionTd.style.whiteSpace = "nowrap";
+    const actions = document.createElement("div");
+    actions.className = "pipeline-actions";
+    const stageIdx = stages.indexOf(activeStage);
+    if (stageIdx < stages.length - 1 && row.linkedin_url) {
+      const btn = document.createElement("button");
+      btn.textContent = "→ " + stages[stageIdx + 1];
+      btn.onclick = (e) => { e.stopPropagation(); promoteRow(row.linkedin_url); };
+      actions.appendChild(btn);
+    }
+    if (stageIdx > 0 && row.linkedin_url) {
+      const btn = document.createElement("button");
+      btn.textContent = "← " + stages[stageIdx - 1];
+      btn.onclick = (e) => { e.stopPropagation(); demoteRow(row.linkedin_url); };
+      actions.appendChild(btn);
+    }
+    actionTd.appendChild(actions);
+    tr.appendChild(actionTd);
+
+    tbody.appendChild(tr);
+  });
+
+  const addRowTr = document.createElement("tr");
+  addRowTr.id = "add-row-row";
+  const addTd = document.createElement("td");
+  addTd.colSpan = cols.length + 2;
+  const addBtn = document.createElement("button");
+  addBtn.textContent = "＋ Add row";
+  addBtn.onclick = () => addRowFn();
+  addTd.appendChild(addBtn);
+  addRowTr.appendChild(addTd);
+  tbody.appendChild(addRowTr);
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+function renderPagination(total, offset, limit) {
+  const container = document.getElementById("pagination");
+  if (!container) return;
+  const start = total > 0 ? offset + 1 : 0;
+  const end = Math.min(offset + limit, total);
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const currentPage = Math.floor(offset / limit) + 1;
+  container.innerHTML = `
+    <button onclick="goToPage(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>← Prev</button>
+    <span>Page <strong>${currentPage}</strong> of ${pages}</span>
+    <button onclick="goToPage(${currentPage + 1})" ${currentPage >= pages ? 'disabled' : ''}>Next →</button>
+    <span style="color:var(--text-muted)">Showing ${start}–${end} of ${total}</span>
+  `;
+}
+
+function goToPage(pageNum) {
+  currentOffset = (pageNum - 1) * pageLimit;
+  fetchPage();
+}
+
+// ── Cell editing ──────────────────────────────────────────────────────────────
+function selectCell(ri, ci) {
+  clearSelection();
+  selectedCell = { stage: activeStage, ri, ci };
+  selectedRow = { stage: activeStage, ri };
+  const td = document.querySelector(`td[data-ri="${ri}"][data-ci="${ci}"]`);
+  if (td) td.classList.add("selected");
+  document.getElementById("btn-delete").disabled = false;
+
+  const cols = columns[activeStage] || [];
+  const localIdx = ri - currentOffset;
+  const val = rows[activeStage][localIdx][cols[ci].key];
+  document.getElementById("cell-ref").textContent = `${cols[ci].key}[${ri+1}]`;
+  document.getElementById("cell-val").textContent = val === null || val === undefined ? "null" : String(val);
+  document.getElementById("statusbar").classList.add("show");
+}
+
+function selectRow(ri) {
+  clearSelection();
+  selectedRow = { stage: activeStage, ri };
+  document.querySelectorAll(`td[data-ri="${ri}"]`).forEach(td => td.style.background = "var(--cell-sel)");
+  document.getElementById("btn-delete").disabled = false;
+}
+
+function clearSelection() {
+  document.querySelectorAll("td.selected").forEach(td => td.classList.remove("selected"));
+  document.querySelectorAll("td[style*='background: var(--cell-sel)']").forEach(td => td.style.background = "");
+  selectedCell = null;
+  selectedRow = null;
+  document.getElementById("btn-delete").disabled = true;
+  document.getElementById("statusbar").classList.remove("show");
+}
+
+function startEdit(ri, ci, td) {
+  document.querySelectorAll("td.editing").forEach(t => {
+    const ri2 = t.dataset.ri, ci2 = t.dataset.ci;
+    commitEdit(Number(ri2), Number(ci2), t, t.querySelector(".cell-editor").value);
+  });
+  td.classList.add("editing");
+  const editor = td.querySelector(".cell-editor");
+  const cols = columns[activeStage] || [];
+  const localIdx = ri - currentOffset;
+  editor.value = rows[activeStage][localIdx][cols[ci].key] ?? "";
+  editor.style.height = "auto";
+  editor.style.height = editor.scrollHeight + "px";
+  editor.focus();
+  editor.select();
+}
+
+function handleEditorKey(e, ri, ci, td) {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitEdit(ri, ci, td, td.querySelector(".cell-editor").value); }
+  if (e.key === "Escape") { td.classList.remove("editing"); }
+  if (e.key === "Tab") {
+    e.preventDefault();
+    commitEdit(ri, ci, td, td.querySelector(".cell-editor").value);
+    const nci = ci + (e.shiftKey ? -1 : 1);
+    const cols = columns[activeStage] || [];
+    if (nci >= 0 && nci < cols.length) {
+      const ntd = document.querySelector(`td[data-ri="${ri}"][data-ci="${nci}"]`);
+      if (ntd) { selectCell(ri, nci); startEdit(ri, nci, ntd); }
+    }
+  }
+}
+
+async function commitEdit(ri, ci, td, rawVal) {
+  td.classList.remove("editing");
+  const cols = columns[activeStage] || [];
+  const col = cols[ci];
+  const localIdx = ri - currentOffset;
+  let val = rawVal;
+  if (val === "" && (rows[activeStage][localIdx][col.key] === null || rows[activeStage][localIdx][col.key] === undefined)) return;
+
+  if (col.type === "int") val = rawVal === "" ? null : parseInt(rawVal, 10);
+  else if (col.type === "float") val = rawVal === "" ? null : parseFloat(rawVal);
+  else if (col.type === "bool") val = rawVal === "" ? null : rawVal === "true";
+  else val = rawVal === "" ? null : rawVal;
+
+  const oldVal = rows[activeStage][localIdx][col.key];
+  if (JSON.stringify(val) === JSON.stringify(oldVal)) return;
+
+  const record = { ...rows[activeStage][localIdx] };
+  record[col.key] = val;
+
+  try {
+    const res = await fetch(`/api/data/${activeStage}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: record }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast("Save failed: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    toast("Saved", "success");
+    await fetchPage();
+  } catch (e) {
+    toast("Save failed: " + e.message, "error");
+  }
+}
+
+// ── Row ops ───────────────────────────────────────────────────────────────────
+async function addRowFn() {
+  const cols = columns[activeStage] || [];
+  const blank = {};
+  cols.forEach(c => { blank[c.key] = null; });
+
+  try {
+    const res = await fetch(`/api/data/${activeStage}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ record: blank }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast("Add failed: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    toast("Added", "success");
+    currentOffset = 0;
+    await fetchPage();
+    const td = document.querySelector(`td[data-ri="${currentOffset}"][data-ci="0"]`);
+    if (td) { selectCell(currentOffset, 0); startEdit(currentOffset, 0, td); }
+  } catch (e) {
+    toast("Add failed: " + e.message, "error");
+  }
+}
+function addRow() { addRowFn(); }
+
+async function deleteSelectedRow() {
+  if (!selectedRow || selectedRow.stage !== activeStage) return;
+  const ri = selectedRow.ri;
+  const localIdx = ri - currentOffset;
+  const row = rows[activeStage][localIdx];
+  if (!row) return;
+
+  const identity = {};
+  if (row.id) identity.id = row.id;
+  else if (row.linkedin_url) identity.linkedin_url = row.linkedin_url;
+
+  try {
+    const res = await fetch(`/api/data/${activeStage}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identity }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast("Delete failed: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    clearSelection();
+    toast("Deleted", "success");
+    await fetchPage();
+  } catch (e) {
+    toast("Delete failed: " + e.message, "error");
+  }
+}
+
+function revertChanges() {
+  if (!confirm("Reload current page from server?")) return;
+  fetchPage();
+}
+
+// ── Promote / Demote ──────────────────────────────────────────────────────────
+async function promoteRow(url) {
+  try {
+    const res = await fetch("/api/promote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkedin_url: url }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast("Promote failed: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    toast("Promoted", "success");
+    await reloadAllStages();
+  } catch (e) {
+    toast("Promote failed: " + e.message, "error");
+  }
+}
+
+async function demoteRow(url) {
+  try {
+    const res = await fetch("/api/demote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkedin_url: url }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      toast("Demote failed: " + (err.detail || "unknown"), "error");
+      return;
+    }
+    toast("Demoted", "success");
+    await reloadAllStages();
+  } catch (e) {
+    toast("Demote failed: " + e.message, "error");
+  }
+}
+
+async function reloadAllStages() {
+  for (const stage of stages) {
+    const dataRes = await fetch(`/api/data/${stage}?limit=${pageLimit}&offset=0`).then(r => r.json());
+    rows[stage] = dataRes.rows;
+  }
+  renderStageTabs();
+  renderHeader();
+  renderBody();
+  renderPagination(rows[activeStage]?.length ?? 0, 0, pageLimit);
+}
+
+// ── Sort ──────────────────────────────────────────────────────────────────────
+function toggleSort(ci) {
+  const cols = columns[activeStage] || [];
+  const key = cols[ci].key;
+  if (currentSortKey === key) {
+    currentSortDir = currentSortDir === "asc" ? "desc" : "asc";
+  } else {
+    currentSortKey = key;
+    currentSortDir = "asc";
+  }
+  currentOffset = 0;
+  fetchPage();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function applySearch(q) {
+  searchQuery = q;
+  currentOffset = 0;
+  clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(() => fetchPage(), 300);
+}
+
+// ── PR modal ──────────────────────────────────────────────────────────────────
+function openSaveModal() {
+  document.getElementById("diff-summary").innerHTML = `
+    <p>All pipeline files will be committed to a new branch and a PR opened.</p>
+  `;
+  document.getElementById("pr-title").value = `Update CRM via jsoncrm`;
+  document.getElementById("modal-overlay").classList.add("open");
+  document.getElementById("pr-title").focus();
+  document.getElementById("pr-title").select();
+}
+
+function closeModal() {
+  document.getElementById("modal-overlay").classList.remove("open");
+}
+
+async function submitPR() {
+  const btn = document.getElementById("btn-submit-pr");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Opening PR…`;
+
+  try {
+    const res = await fetch("/api/pr", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: document.getElementById("pr-title").value,
+        body: document.getElementById("pr-body").value,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "Unknown error");
+
+    closeModal();
+    toast(`PR opened → ${data.pr_url}`, "success");
+    setTimeout(() => window.open(data.pr_url, "_blank"), 600);
+  } catch (e) {
+    toast("Error: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "Open PR";
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = "") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ""; }, 3000);
+}
+
+// ── Keyboard global ───────────────────────────────────────────────────────────
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { clearSelection(); document.getElementById("modal-overlay").classList.remove("open"); }
+  if ((e.metaKey || e.ctrlKey) && e.key === "f") { e.preventDefault(); document.getElementById("search").focus(); }
+  if (e.key === "F2" && selectedCell && selectedCell.stage === activeStage) {
+    const td = document.querySelector(`td[data-ri="${selectedCell.ri}"][data-ci="${selectedCell.ci}"]`);
+    if (td) startEdit(selectedCell.ri, selectedCell.ci, td);
+  }
+  if (e.key === "Delete" && selectedCell && selectedCell.stage === activeStage && !document.querySelector("td.editing")) {
+    commitEdit(selectedCell.ri, selectedCell.ci, document.querySelector(`td[data-ri="${selectedCell.ri}"][data-ci="${selectedCell.ci}"]`), "");
+  }
+});
+
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+init().catch(e => { document.body.innerHTML = `<div style="padding:20px;color:var(--danger)">Error: ${e.message}</div>`; });
+</script>
+</body>
+</html>

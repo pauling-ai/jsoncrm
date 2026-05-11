@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import os
 import random
 import sys
 from pathlib import Path
@@ -1185,6 +1186,13 @@ def main():
     p_list.add_argument("-n", "--limit", type=int, default=None, help="Limit number of results")
     p_list.add_argument("--file", default=None, help="Override the JSON file for the given stage")
 
+    # serve
+    p_serve = subparsers.add_parser("serve", parents=[parent], help="Start the web UI server.")
+    p_serve.add_argument("--port", type=int, default=7341, help="Port (default: 7341)")
+    p_serve.add_argument("--github-token", default=os.environ.get("GITHUB_TOKEN", ""), help="GitHub PAT")
+    p_serve.add_argument("--repo", default=os.environ.get("GITHUB_REPO", ""), help="owner/repo")
+    p_serve.add_argument("--branch", default="main", help="Base branch for PRs")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -1251,6 +1259,15 @@ def main():
         cmd_demote(args)
     elif args.command in ("list", "ls"):
         cmd_list(args)
+    elif args.command == "serve":
+        from jsoncrm.server import run_server
+        run_server(
+            port=args.port,
+            config_path=args.config,
+            github_token=args.github_token or None,
+            repo=args.repo or None,
+            base_branch=args.branch,
+        )
 
 
 if __name__ == "__main__":

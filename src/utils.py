@@ -10,7 +10,6 @@ from pathlib import Path
 from jsoncrm.schema import (
     COMPETITOR_COMPANY_KEYS,
     COMPETITOR_PERSON_KEYS,
-    PIPELINE_FILES,
 )
 
 
@@ -31,6 +30,7 @@ def atomic_write_json(path, data):
 def build_known_urls(*, leads_file=None, prospects_file=None, customers_file=None):
     known_urls = set()
     if leads_file is None and prospects_file is None and customers_file is None:
+        from jsoncrm.schema import PIPELINE_FILES
         pipeline_files = PIPELINE_FILES
     else:
         from jsoncrm.schema import LEADS_FILE, PROSPECTS_FILE, CUSTOMERS_FILE
@@ -126,6 +126,7 @@ def find_record(target_url, target_file=None):
         paths = [Path(target_file)]
     else:
         # Search configured pipeline files instead of globbing all *.json
+        from jsoncrm.schema import PIPELINE_FILES
         paths = [path for _, path in PIPELINE_FILES]
     for path in paths:
         try:
