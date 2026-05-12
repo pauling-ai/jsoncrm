@@ -528,8 +528,6 @@ document.addEventListener("keydown", e => {
   }
 });
 
-function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-
 init().catch(e => { document.body.innerHTML = `<div style="padding:20px;color:var(--danger)">Error: ${e.message}</div>`; });
 
 // Expose functions needed by inline HTML handlers
