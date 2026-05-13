@@ -21,8 +21,9 @@ def load_json(path):
 
 def atomic_write_json(path, data):
     """Write *data* to *path* atomically via a temp file + os.replace()."""
+    import uuid
     path = Path(path)
-    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp = path.with_suffix(path.suffix + f".tmp-{uuid.uuid4().hex}")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
