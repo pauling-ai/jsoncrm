@@ -258,9 +258,9 @@ def test_cmd_top_returns_highest_scored(tmp_path, capsys):
     db.write_text(
         json.dumps(
             [
-                {"name": "Low", "score": "⭐⭐"},
-                {"name": "High", "score": "⭐⭐⭐⭐⭐"},
-                {"name": "Mid", "score": "⭐⭐⭐"},
+                {"name": "Low", "score": "⭐⭐", "next_follow_up": "2020-01-01"},
+                {"name": "High", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01"},
+                {"name": "Mid", "score": "⭐⭐⭐", "next_follow_up": "2020-01-01"},
             ]
         )
     )
@@ -272,7 +272,7 @@ def test_cmd_top_returns_highest_scored(tmp_path, capsys):
 
 def test_cmd_top_excludes_unscored(tmp_path, capsys):
     db = tmp_path / "db.json"
-    db.write_text(json.dumps([{"name": "Unscored", "score": None}, {"name": "Scored", "score": "⭐"}]))
+    db.write_text(json.dumps([{"name": "Unscored", "score": None}, {"name": "Scored", "score": "⭐", "next_follow_up": "2020-01-01"}]))
     tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
     captured = capsys.readouterr()
     assert "Scored" in captured.out
@@ -285,6 +285,72 @@ def test_cmd_top_empty_exits(tmp_path):
     with pytest.raises(SystemExit) as exc:
         tool.cmd_top(make_args(file=str(db), num=1, min_score=None, include_contacted=False, include_disqualified=False, output=None))
     assert exc.value.code == 1
+
+
+def test_cmd_top_excludes_null_next_follow_up(tmp_path, capsys):
+    db = tmp_path / "db.json"
+    db.write_text(
+        json.dumps(
+            [
+                {"name": "NullFollowUp", "score": "⭐⭐⭐⭐⭐", "next_follow_up": None},
+                {"name": "Actionable", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01"},
+            ]
+        )
+    )
+    tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
+    captured = capsys.readouterr()
+    assert "Actionable" in captured.out
+    assert "NullFollowUp" not in captured.out
+
+
+def test_cmd_top_excludes_future_next_follow_up(tmp_path, capsys):
+    db = tmp_path / "db.json"
+    db.write_text(
+        json.dumps(
+            [
+                {"name": "Future", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2099-12-31"},
+                {"name": "Ready", "score": "⭐⭐⭐⭐", "next_follow_up": "2020-01-01"},
+            ]
+        )
+    )
+    tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
+    captured = capsys.readouterr()
+    assert "Ready" in captured.out
+    assert "Future" not in captured.out
+
+
+def test_cmd_top_includes_past_next_follow_up(tmp_path, capsys):
+    db = tmp_path / "db.json"
+    db.write_text(
+        json.dumps(
+            [
+                {"name": "PastDue", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01"},
+                {"name": "NeverSet", "score": "⭐⭐⭐⭐", "next_follow_up": "2024-06-01"},
+            ]
+        )
+    )
+    tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
+    captured = capsys.readouterr()
+    assert "PastDue" in captured.out
+    assert "NeverSet" in captured.out
+
+
+def test_cmd_top_include_contacted_bypasses_filter(tmp_path, capsys):
+    db = tmp_path / "db.json"
+    db.write_text(
+        json.dumps(
+            [
+                {"name": "NullFollowUp", "score": "⭐⭐⭐⭐⭐", "next_follow_up": None},
+                {"name": "Future", "score": "⭐⭐⭐⭐", "next_follow_up": "2099-12-31"},
+                {"name": "Past", "score": "⭐⭐⭐", "next_follow_up": "2020-01-01"},
+            ]
+        )
+    )
+    tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=True, include_disqualified=False, output=None))
+    captured = capsys.readouterr()
+    assert "NullFollowUp" in captured.out
+    assert "Future" in captured.out
+    assert "Past" in captured.out
 
 
 # --- cmd_merge ---

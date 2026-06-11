@@ -771,6 +771,8 @@ TOP_RECORDS = [
         "connected": False,
         "email": None,
         "contacted_at": None,
+        "last_contact": None,
+        "next_follow_up": "2020-01-01",
         "source": "manual",
         "added": "2026-01-01",
         "score": "⭐⭐⭐⭐⭐",
@@ -784,6 +786,8 @@ TOP_RECORDS = [
         "connected": False,
         "email": None,
         "contacted_at": None,
+        "last_contact": None,
+        "next_follow_up": "2020-01-01",
         "source": "manual",
         "added": "2026-01-02",
         "score": "⭐⭐⭐",
@@ -797,6 +801,8 @@ TOP_RECORDS = [
         "connected": True,
         "email": "helen@donebio.com",
         "contacted_at": "2026-03-01",
+        "last_contact": "2026-03-01",
+        "next_follow_up": None,
         "source": "manual",
         "added": "2026-01-03",
         "score": "⭐⭐⭐⭐⭐",
@@ -810,6 +816,8 @@ TOP_RECORDS = [
         "connected": False,
         "email": None,
         "contacted_at": None,
+        "last_contact": None,
+        "next_follow_up": "2020-01-01",
         "source": "manual",
         "added": "2026-01-04",
         "score": "❌",
@@ -823,10 +831,42 @@ TOP_RECORDS = [
         "connected": False,
         "email": None,
         "contacted_at": None,
+        "last_contact": None,
+        "next_follow_up": "2020-01-01",
         "source": "manual",
         "added": "2026-01-05",
         "score": None,
         "notes": "",
+    },
+    {
+        "name": "Karen Cooldown",
+        "position": "Head of Chemistry",
+        "company": "WaitBio",
+        "linkedin_url": "https://www.linkedin.com/in/karen-cooldown/",
+        "connected": True,
+        "email": "karen@waitbio.com",
+        "contacted_at": "2026-06-01",
+        "last_contact": "2026-06-01",
+        "next_follow_up": "2099-12-31",
+        "source": "manual",
+        "added": "2026-06-01",
+        "score": "⭐⭐⭐⭐⭐",
+        "notes": "contacted recently, don't re-engage yet",
+    },
+    {
+        "name": "Laura Reengage",
+        "position": "Director of Comp Chem",
+        "company": "GhostPharma",
+        "linkedin_url": "https://www.linkedin.com/in/laura-reengage/",
+        "connected": True,
+        "email": "laura@ghostpharma.com",
+        "contacted_at": "2026-04-01",
+        "last_contact": "2026-04-01",
+        "next_follow_up": "2026-05-01",
+        "source": "manual",
+        "added": "2026-04-01",
+        "score": "⭐⭐⭐⭐⭐",
+        "notes": "contacted but ghosted, follow-up overdue",
     },
 ]
 
@@ -848,7 +888,8 @@ def test_top_n():
     out, rc = run("top", "-n", "2", "--file", str(TEST_TOP))
     assert rc == 0
     assert "Fiona Five Stars" in out
-    assert "George Three Stars" in out
+    # Laura is ⭐⭐⭐⭐⭐ and past-due for re-engagement, outranks George
+    assert "Laura Reengage" in out
 
 
 def test_top_excludes_contacted():
@@ -892,6 +933,31 @@ def test_top_min_score():
     assert rc == 0
     assert "Fiona Five Stars" in out
     assert "George Three Stars" not in out
+
+
+def test_top_excludes_future_cooldown():
+    """Leads with next_follow_up in the future should not appear by default."""
+    write_top()
+    out, rc = run("top", "-n", "10", "--file", str(TEST_TOP))
+    assert rc == 0
+    assert "Karen Cooldown" not in out
+
+
+def test_top_includes_past_due_reengage():
+    """Leads with overdue next_follow_up should appear for re-engagement."""
+    write_top()
+    out, rc = run("top", "-n", "10", "--file", str(TEST_TOP))
+    assert rc == 0
+    assert "Laura Reengage" in out
+
+
+def test_top_include_contacted_shows_cooldown():
+    """--include-contacted bypasses the next_follow_up filter entirely."""
+    write_top()
+    out, rc = run("top", "-n", "10", "--include-contacted", "--file", str(TEST_TOP))
+    assert rc == 0
+    assert "Karen Cooldown" in out
+    assert "Helen Contacted" in out
 
 
 def test_top_does_not_write_pending_stub_by_default():

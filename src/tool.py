@@ -6,6 +6,7 @@ import json
 import os
 import random
 import sys
+from datetime import date
 from pathlib import Path
 
 # Re-export everything from sub-modules so callers can import from jsoncrm.tool.
@@ -352,15 +353,19 @@ def cmd_top(args):
         sys.exit(1)
 
     records = json.loads(path.read_text())
+    today = date.today().isoformat()
     results = []
     for r in records:
         score = r.get("score")
-        if not args.include_contacted and r.get("contacted_at"):
-            continue
         if score is None:
             continue
         if score == "❌" and not args.include_disqualified:
             continue
+        if not args.include_contacted:
+            next_up = r.get("next_follow_up")
+            # null = explicitly don't contact; future date = cooldown not elapsed
+            if next_up is None or next_up > today:
+                continue
         if args.min_score and score_value(score) < score_value(args.min_score):
             continue
         results.append(r)
@@ -1093,7 +1098,7 @@ def main():
     p_top.add_argument("--min", dest="min_score", default=None,
                        metavar="STARS", help="Minimum score, e.g. ⭐⭐⭐")
     p_top.add_argument("--include-contacted", action="store_true",
-                       help="Include leads that have already been contacted")
+                       help="Include leads regardless of next_follow_up (bypass re-engagement filter)")
     p_top.add_argument("--include-disqualified", action="store_true",
                        help="Include disqualified (❌) leads")
     p_top.add_argument("--output", default=None,
