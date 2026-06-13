@@ -87,9 +87,12 @@ def cmd_parse_from_linkedin_mcp(args):
                 "connected": "1st degree" in raw_name,
                 "email": None,
                 "contacted_at": None,
+                "last_contact": None,
+                "next_follow_up": None,
                 "source": "linkedin_mcp",
                 "added": today_str,
                 "score": None,
+                "github_issue": None,
                 "notes": ""
             })
             

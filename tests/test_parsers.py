@@ -144,3 +144,27 @@ def test_parse_missing_file_warns(tmp_path, capsys):
     cmd_parse_from_linkedin_mcp(SimpleNamespace(files=[str(path)]))
     captured = capsys.readouterr()
     assert "not found" in captured.out
+
+
+def test_parse_likers_emits_full_schema(tmp_path, capsys):
+    """Regression: parser must emit all CRM schema fields, not a subset.
+
+    Bug: parser previously wrote 12 fields, missing last_contact,
+    next_follow_up, and github_issue.
+    """
+    path = tmp_path / "likers.json"
+    path.write_text(json.dumps({
+        "url": "https://linkedin.com/post/123",
+        "likers": [{"name": "Liker One\n· 2nd\nFounder at Startup", "url": "https://www.linkedin.com/in/liker-one/"}],
+    }, indent=2))
+    cmd_parse_from_linkedin_mcp(SimpleNamespace(files=[str(path)]))
+    parsed = json.loads(path.read_text())
+    required = {"name","position","company","linkedin_url","connected",
+                "email","contacted_at","last_contact","next_follow_up",
+                "source","added","score","github_issue","notes"}
+    assert set(parsed[0].keys()) == required, (
+        f"missing: {required - set(parsed[0].keys())}, "
+        f"extra: {set(parsed[0].keys()) - required}")
+    assert parsed[0]["last_contact"] is None
+    assert parsed[0]["next_follow_up"] is None
+    assert parsed[0]["github_issue"] is None
