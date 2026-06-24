@@ -4,6 +4,7 @@ import json
 from datetime import date
 from pathlib import Path
 
+from jsoncrm.schema import JSON_DB_ENCODING
 from jsoncrm.utils import atomic_write_json
 
 
@@ -14,7 +15,7 @@ def cmd_parse_from_linkedin_mcp(args):
             print(f"Error: {path} not found")
             continue
 
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
         
         if not isinstance(data, dict):
             print(f"Error: {path.name} must be a recognized MCP output format (dict)")

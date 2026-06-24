@@ -18,6 +18,7 @@ from jsoncrm.schema import (
     COMPETITOR_PERSON_KEYS,
     CRM_DIR,
     CUSTOMERS_FILE,
+    JSON_DB_ENCODING,
     LEADS_FILE,
     PENDING_FILE,
     PIPELINE_FILES,
@@ -64,7 +65,7 @@ def load_all():
     records = []
     for stage, path in PIPELINE_FILES:
         if path.exists():
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
             for r in data:
                 records.append((stage, r))
     return records
@@ -75,7 +76,7 @@ def load_item(args):
         print("Error: use only one of --item_file or --item_json")
         sys.exit(1)
     if getattr(args, "item_file", None):
-        return json.loads(Path(args.item_file).read_text())
+        return json.loads(Path(args.item_file).read_text(encoding=JSON_DB_ENCODING))
     if getattr(args, "item_json", None):
         return json.loads(args.item_json)
     print("Error: provide one of --item_file or --item_json")
@@ -166,7 +167,7 @@ def cmd_find(args):
     results = [record for record in records if matches(record)]
     output = json.dumps(results, indent=2, ensure_ascii=False)
     if args.output_file:
-        Path(args.output_file).write_text(output + "\n")
+        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
     else:
         print(output)
 
@@ -188,7 +189,7 @@ def cmd_add(args):
 
     output = json.dumps(item, indent=2, ensure_ascii=False)
     if args.output_file:
-        Path(args.output_file).write_text(output + "\n")
+        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
     else:
         print(output)
 
@@ -223,7 +224,7 @@ def cmd_delete(args):
 
     output = json.dumps(deleted, indent=2, ensure_ascii=False)
     if args.output_file:
-        Path(args.output_file).write_text(output + "\n")
+        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
     else:
         print(output)
 
@@ -260,7 +261,7 @@ def cmd_update(args):
 
     output = json.dumps(updated, indent=2, ensure_ascii=False)
     if args.output_file:
-        Path(args.output_file).write_text(output + "\n")
+        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
     else:
         print(output)
 
@@ -270,7 +271,7 @@ def cmd_apply_update(args):
     if not pending_path.exists():
         print(f"Error: no pending update file at {pending_path}")
         sys.exit(1)
-    payload = json.loads(pending_path.read_text())
+    payload = json.loads(pending_path.read_text(encoding=JSON_DB_ENCODING))
     target_url = payload.get("linkedin_url")
     if not target_url:
         print("Error: pending file missing 'linkedin_url'")
@@ -313,7 +314,7 @@ def cmd_intake(args):
         print(f"Error: {path} not found")
         sys.exit(1)
 
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
     if not isinstance(data, list):
         print("Error: file must be a JSON array")
         sys.exit(1)
@@ -352,7 +353,7 @@ def cmd_top(args):
         print(f"Error: {path} not found")
         sys.exit(1)
 
-    records = json.loads(path.read_text())
+    records = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
     today = date.today().isoformat()
     results = []
     for r in records:
@@ -798,7 +799,7 @@ def cmd_validate(args):
             continue
 
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
         except json.JSONDecodeError as e:
             stage_errors.append(f"invalid JSON: {e}")
             errors.append({"stage": stage, "file": str(path), "error": f"invalid JSON: {e}"})

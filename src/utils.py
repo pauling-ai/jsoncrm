@@ -10,12 +10,13 @@ from pathlib import Path
 from jsoncrm.schema import (
     COMPETITOR_COMPANY_KEYS,
     COMPETITOR_PERSON_KEYS,
+    JSON_DB_ENCODING,
 )
 
 
 def load_json(path):
     if path.exists():
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding=JSON_DB_ENCODING))
     return []
 
 
@@ -24,7 +25,7 @@ def atomic_write_json(path, data):
     import uuid
     path = Path(path)
     tmp = path.with_suffix(path.suffix + f".tmp-{uuid.uuid4().hex}")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding=JSON_DB_ENCODING)
     os.replace(tmp, path)
 
 
@@ -101,7 +102,7 @@ def search_competitors(query, person=False, company=False):
     from jsoncrm.schema import COMPETITORS_FILE
     if not COMPETITORS_FILE.exists():
         return []
-    data = json.loads(COMPETITORS_FILE.read_text())
+    data = json.loads(COMPETITORS_FILE.read_text(encoding=JSON_DB_ENCODING))
     q = query.lower()
     q_norm = normalize_company_name(query)
     hits = []
@@ -131,7 +132,7 @@ def find_record(target_url, target_file=None):
         paths = [path for _, path in PIPELINE_FILES]
     for path in paths:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
         except Exception:
             continue
         if not isinstance(data, list):

@@ -19,7 +19,7 @@ from pydantic import BaseModel
 
 import jsoncrm.schema as schema
 from jsoncrm.config import Config
-from jsoncrm.schema import PIPELINE_FILES, COMPETITORS_FILE, PENDING_FILE, SCORE_ORDER
+from jsoncrm.schema import PIPELINE_FILES, COMPETITORS_FILE, PENDING_FILE, SCORE_ORDER, JSON_DB_ENCODING
 from jsoncrm.utils import (
     atomic_write_json,
     build_known_urls,
@@ -400,7 +400,7 @@ def create_app(
                 continue
             filename = path.name
             content = json.dumps(load_json(path), indent=2, ensure_ascii=False) + "\n"
-            encoded = base64.b64encode(content.encode()).decode()
+            encoded = base64.b64encode(content.encode(JSON_DB_ENCODING)).decode()
 
             # Get file SHA on base branch
             file_url = f"https://api.github.com/repos/{repo}/contents/{filename}"

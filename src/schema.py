@@ -2,6 +2,11 @@
 
 from pathlib import Path
 
+# All CRM JSON files are written and read in this encoding so non-ASCII
+# characters (stars, emojis, any Unicode) survive every rewrite regardless
+# of the ambient locale.
+JSON_DB_ENCODING = "utf-8"
+
 # Default to current working directory. Callers (or a shim) can override
 # CRM_DIR before importing other names if they need a different base path.
 CRM_DIR = Path(".")

@@ -7,6 +7,8 @@ Falls back to built-in marketing-CRM defaults when no config is found.
 import json
 from pathlib import Path
 
+from jsoncrm.schema import JSON_DB_ENCODING
+
 DEFAULT_MARKETING_CONFIG = {
     "name": "marketing-crm",
     "pipeline": {
@@ -68,7 +70,7 @@ class Config:
             config_path = Path(".crm.json")
 
         if config_path.exists():
-            with open(config_path, encoding="utf-8") as f:
+            with open(config_path, encoding=JSON_DB_ENCODING) as f:
                 override = json.load(f)
             return cls(_deep_merge(DEFAULT_MARKETING_CONFIG, override))
         return cls(_deep_merge(DEFAULT_MARKETING_CONFIG, {}))
