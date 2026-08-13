@@ -364,8 +364,15 @@ def cmd_top(args):
             continue
         if not args.include_contacted:
             next_up = r.get("next_follow_up")
-            # null = explicitly don't contact; future date = cooldown not elapsed
-            if next_up is None or next_up > today:
+            contacted = bool(r.get("contacted_at"))
+            # A lead is due now when it has never been contacted (fresh, no
+            # next_follow_up scheduled) OR its scheduled follow-up is today/past.
+            # It is deferred only by a future next_follow_up (cooldown), or by a
+            # null next_follow_up once it has been contacted ("don't contact").
+            if next_up is None:
+                if contacted:
+                    continue
+            elif next_up > today:
                 continue
         if args.min_score and score_value(score) < score_value(args.min_score):
             continue

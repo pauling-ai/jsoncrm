@@ -287,20 +287,38 @@ def test_cmd_top_empty_exits(tmp_path):
     assert exc.value.code == 1
 
 
-def test_cmd_top_excludes_null_next_follow_up(tmp_path, capsys):
+def test_cmd_top_includes_never_contacted_null_follow_up(tmp_path, capsys):
+    # A fresh lead (no contacted_at, no next_follow_up) must surface as new work.
     db = tmp_path / "db.json"
     db.write_text(
         json.dumps(
             [
-                {"name": "NullFollowUp", "score": "⭐⭐⭐⭐⭐", "next_follow_up": None},
-                {"name": "Actionable", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01"},
+                {"name": "FreshLead", "score": "⭐⭐⭐⭐⭐", "next_follow_up": None, "contacted_at": None},
+                {"name": "Actionable", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01", "contacted_at": "2020-01-01"},
             ]
         )
     )
     tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
     captured = capsys.readouterr()
     assert "Actionable" in captured.out
-    assert "NullFollowUp" not in captured.out
+    assert "FreshLead" in captured.out
+
+
+def test_cmd_top_excludes_contacted_null_follow_up(tmp_path, capsys):
+    # Once contacted, a null next_follow_up means "don't contact again" -> hidden.
+    db = tmp_path / "db.json"
+    db.write_text(
+        json.dumps(
+            [
+                {"name": "Declined", "score": "⭐⭐⭐⭐⭐", "next_follow_up": None, "contacted_at": "2020-01-01"},
+                {"name": "Actionable", "score": "⭐⭐⭐⭐⭐", "next_follow_up": "2020-01-01", "contacted_at": "2020-01-01"},
+            ]
+        )
+    )
+    tool.cmd_top(make_args(file=str(db), num=10, min_score=None, include_contacted=False, include_disqualified=False, output=None))
+    captured = capsys.readouterr()
+    assert "Actionable" in captured.out
+    assert "Declined" not in captured.out
 
 
 def test_cmd_top_excludes_future_next_follow_up(tmp_path, capsys):
