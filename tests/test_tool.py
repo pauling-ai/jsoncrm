@@ -893,3 +893,60 @@ def test_json_mode_stats(tmp_path, capsys):
     data = json.loads(captured.out)
     assert "leads" in data
     assert data["leads"]["total"] == 0
+
+
+# --- cmd_dump_emails ---
+
+def test_cmd_dump_emails_to_file(patched_pipeline, tmp_path, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "email": "alice@example.com"},
+        {"name": "Bob", "email": None},
+        {"name": "Carol"},
+    ]))
+    prospects = patched_pipeline / "prospects.json"
+    prospects.write_text(json.dumps([
+        {"name": "Dan", "email": "dan@example.com"},
+        {"name": "Alice Dupe", "email": "alice@example.com"},
+    ]))
+    out = tmp_path / "emails.txt"
+    tool.cmd_dump_emails(make_args(out=str(out)))
+    captured = capsys.readouterr()
+    assert "Wrote 2 email(s)" in captured.out
+    assert out.read_text() == "alice@example.com, dan@example.com\n"
+
+
+def test_cmd_dump_emails_to_stdout(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "email": "alice@example.com"},
+    ]))
+    tool.cmd_dump_emails(make_args(out=None))
+    captured = capsys.readouterr()
+    assert captured.out.strip() == "alice@example.com"
+
+
+def test_cmd_dump_emails_empty(patched_pipeline, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([{"name": "Alice"}]))
+    tool.cmd_dump_emails(make_args(out=None))
+    captured = capsys.readouterr()
+    assert "No emails found" in captured.out
+
+
+def test_json_mode_dump_emails(patched_pipeline, tmp_path, capsys):
+    leads = patched_pipeline / "leads.json"
+    leads.write_text(json.dumps([
+        {"name": "Alice", "email": "alice@example.com"},
+    ]))
+    out = tmp_path / "emails.txt"
+    tool._set_json_mode(True)
+    try:
+        tool.cmd_dump_emails(make_args(out=str(out)))
+    finally:
+        tool._set_json_mode(False)
+    captured = capsys.readouterr()
+    data = json.loads(captured.out)
+    assert data["count"] == 1
+    assert data["emails"] == ["alice@example.com"]
+    assert out.read_text() == "alice@example.com\n"

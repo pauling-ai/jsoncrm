@@ -1029,6 +1029,30 @@ def cmd_list(args):
             print(f"           {r['linkedin_url']}")
 
 
+def cmd_dump_emails(args):
+    """Dump all email addresses in the pipeline, comma separated."""
+    seen = set()
+    emails = []
+    for _stage, r in load_all():
+        email = (r.get("email") or "").strip()
+        if email and email not in seen:
+            seen.add(email)
+            emails.append(email)
+
+    if args.out:
+        Path(args.out).write_text(", ".join(emails) + "\n", encoding=JSON_DB_ENCODING)
+
+    if _jout({"count": len(emails), "emails": emails}):
+        return
+
+    if args.out:
+        print(f"Wrote {len(emails)} email(s) to {args.out}")
+    elif emails:
+        print(", ".join(emails))
+    else:
+        print("No emails found in pipeline.")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Unified CRM tool.")
     parser.add_argument("--config", default=None, help="Path to .crm.json config file")
@@ -1199,6 +1223,12 @@ def main():
     p_list.add_argument("-n", "--limit", type=int, default=None, help="Limit number of results")
     p_list.add_argument("--file", default=None, help="Override the JSON file for the given stage")
 
+    # dump_emails
+    p_dump_emails = subparsers.add_parser("dump_emails", parents=[parent],
+                                          help="Dump all email addresses in the pipeline, comma separated.")
+    p_dump_emails.add_argument("--out", default=None,
+                               help="Write the comma-separated emails to this file instead of stdout")
+
     # serve
     p_serve = subparsers.add_parser("serve", parents=[parent], help="Start the web UI server.")
     p_serve.add_argument("--port", type=int, default=7341, help="Port (default: 7341)")
@@ -1272,6 +1302,8 @@ def main():
         cmd_demote(args)
     elif args.command in ("list", "ls"):
         cmd_list(args)
+    elif args.command == "dump_emails":
+        cmd_dump_emails(args)
     elif args.command == "serve":
         from jsoncrm.server import run_server
         run_server(

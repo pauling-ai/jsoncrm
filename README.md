@@ -111,6 +111,7 @@ A typical lead looks like:
 - `jsoncrm list leads` — List records in a stage (with `--score`, `--company`, `--query`, `--limit`)
 - `jsoncrm recent` — Most recently added records
 - `jsoncrm top -n 5 --min ⭐⭐⭐` — Top scored leads
+- `jsoncrm dump_emails --out emails.txt` — Dump all pipeline emails, comma separated
 
 ### CRUD
 - `jsoncrm add --database_file leads.json --item_json '{...}'`
