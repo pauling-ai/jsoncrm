@@ -494,6 +494,27 @@ def test_cmd_promote_lead_to_prospect(tmp_path, capsys):
     assert dst[0]["name"] == "Alice"
 
 
+def test_cmd_promote_by_configured_identity(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text(json.dumps([{"id": "jfc:25-1-1", "name": "Factory"}]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    tool.cmd_promote(
+        make_args(
+            identity_value="jfc:25-1-1",
+            identity_field="id",
+            lead=True,
+            prospect=False,
+            from_file=str(leads),
+            to_file=str(prospects),
+        )
+    )
+    assert json.loads(leads.read_text()) == []
+    dst = json.loads(prospects.read_text())
+    assert len(dst) == 1
+    assert dst[0]["id"] == "jfc:25-1-1"
+
+
 def test_cmd_promote_prospect_to_customer(tmp_path, capsys):
     prospects = tmp_path / "prospects.json"
     prospects.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))

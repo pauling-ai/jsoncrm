@@ -120,8 +120,9 @@ A typical lead looks like:
 - `jsoncrm find --database_file leads.json --item_json '{"company":"Acme"}'`
 
 ### Pipeline
-- `jsoncrm promote <url> --lead` — Move lead → prospect
-- `jsoncrm promote <url> --prospect` — Move prospect → customer
+- `jsoncrm promote <identity> --lead` — Move lead → prospect
+- `jsoncrm promote <identity> --prospect` — Move prospect → next configured stage
+  (uses `identity.primary`; override with `--identity-field`)
 - `jsoncrm demote <url> --prospect` — Move prospect → lead
 - `jsoncrm demote <url> --customer` — Move customer → prospect
 

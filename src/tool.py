@@ -637,6 +637,7 @@ PROMOTE_MAP = {
     "lead": ("leads.json", "prospects.json"),
     "prospect": ("prospects.json", "customers.json"),
 }
+IDENTITY_PRIMARY = "linkedin_url"
 
 
 def _build_promote_map(config):
@@ -653,6 +654,13 @@ def _build_promote_map(config):
                 stage_files.get(to_stage, CRM_DIR / f"{to_stage}.json").name,
             )
     return result
+
+
+def _identity_matches(record, field, value):
+    """Compare configured identities, normalizing URL identities when appropriate."""
+    if field.endswith("_url"):
+        return normalize_url(record.get(field, "")) == normalize_url(value)
+    return record.get(field) == value
 
 
 def cmd_promote(args):
@@ -672,24 +680,25 @@ def cmd_promote(args):
     src_data = load_json(src_path)
     dst_data = load_json(dst_path)
 
-    norm = normalize_url(args.linkedin_url)
+    identity_value = getattr(args, "identity_value", None) or getattr(args, "linkedin_url", None)
+    identity_field = getattr(args, "identity_field", None) or IDENTITY_PRIMARY
     record = None
     remaining = []
     for r in src_data:
-        if normalize_url(r.get("linkedin_url", "")) == norm:
+        if _identity_matches(r, identity_field, identity_value):
             record = r
         else:
             remaining.append(r)
 
     if record is None:
-        print(f"Error: no record found for '{args.linkedin_url}' in {src_path.name}")
+        print(f"Error: no record found for {identity_field} '{identity_value}' in {src_path.name}")
         sys.exit(1)
 
     dst_data.append(record)
     atomic_write_json(src_path, remaining)
     atomic_write_json(dst_path, dst_data)
 
-    name = record.get("name", args.linkedin_url)
+    name = record.get("name", identity_value)
     if _jout({"action": "promoted", "record": record, "from": src_path.name, "to": dst_path.name}):
         return
     print(f"Promoted: {name}  {src_path.name} → {dst_path.name}")
@@ -1174,7 +1183,10 @@ def main():
     # promote
     p_promote = subparsers.add_parser("promote", parents=[parent],
                                       help="Move a record to the next pipeline stage.")
-    p_promote.add_argument("linkedin_url", help="LinkedIn URL of the record to promote")
+    p_promote.add_argument("identity_value",
+                           help="Configured primary identity value of the record to promote")
+    p_promote.add_argument("--identity-field", default=None,
+                           help="Override the configured primary identity field")
     stage = p_promote.add_mutually_exclusive_group(required=True)
     stage.add_argument("--lead", action="store_true",
                        help="Promote from leads to prospects")
@@ -1252,7 +1264,7 @@ def main():
 
     # Rebind tool.py's imported names so they reflect the config
     global PIPELINE_FILES, COMPETITORS_FILE, LEADS_FILE, PROSPECTS_FILE
-    global CUSTOMERS_FILE, PENDING_FILE, SCORE_ORDER, PROMOTE_MAP
+    global CUSTOMERS_FILE, PENDING_FILE, SCORE_ORDER, PROMOTE_MAP, IDENTITY_PRIMARY
     PIPELINE_FILES = schema.PIPELINE_FILES
     COMPETITORS_FILE = schema.COMPETITORS_FILE
     LEADS_FILE = schema.LEADS_FILE
@@ -1261,6 +1273,7 @@ def main():
     PENDING_FILE = schema.PENDING_FILE
     SCORE_ORDER = schema.SCORE_ORDER
     PROMOTE_MAP = _build_promote_map(config)
+    IDENTITY_PRIMARY = config.identity_primary
 
     _set_json_mode(args.json)
 
