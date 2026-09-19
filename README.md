@@ -123,8 +123,9 @@ A typical lead looks like:
 - `jsoncrm promote <identity> --lead` — Move lead → prospect
 - `jsoncrm promote <identity> --prospect` — Move prospect → next configured stage
   (uses `identity.primary`; override with `--identity-field`)
-- `jsoncrm demote <url> --prospect` — Move prospect → lead
-- `jsoncrm demote <url> --customer` — Move customer → prospect
+- `jsoncrm demote <identity> --prospect` — Move prospect → lead
+- `jsoncrm demote <identity> --customer` — Move customer → prospect
+  (uses `identity.primary`; override with `--identity-field`)
 
 ### Data Quality
 - `jsoncrm validate` — Validate all pipeline files for structural integrity

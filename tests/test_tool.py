@@ -589,7 +589,13 @@ def test_cmd_stats_prospects(tmp_path, capsys):
     leads.write_text("[]\n")
     prospects = tmp_path / "prospects.json"
     prospects.write_text(
-        json.dumps([{"name": "A", "status": "active"}, {"name": "B", "status": "closed"}])
+        json.dumps(
+            [
+                {"name": "A", "status": "active"},
+                {"name": "B", "status": "closed"},
+                {"name": "C", "status": "active", "contacted_at": "2026-09-19"},
+            ]
+        )
     )
     customers = tmp_path / "customers.json"
     customers.write_text("[]\n")
@@ -601,7 +607,7 @@ def test_cmd_stats_prospects(tmp_path, capsys):
         )
     )
     captured = capsys.readouterr()
-    assert "Prospects: 2 (1 active, 1 closed)" in captured.out
+    assert "Prospects: 3 (2 active, 1 closed, 1 contacted)" in captured.out
 
 
 def test_cmd_stats_customers(tmp_path, capsys):
@@ -810,6 +816,25 @@ def test_cmd_demote_customer_to_prospect(tmp_path, capsys):
     assert "Demoted" in captured.out
     assert len(json.loads(customers.read_text())) == 0
     assert len(json.loads(prospects.read_text())) == 1
+
+
+def test_cmd_demote_by_configured_identity(tmp_path, capsys):
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text(json.dumps([{"id": "jfc:1", "name": "Factory"}]))
+    leads = tmp_path / "leads.json"
+    leads.write_text("[]\n")
+    tool.cmd_demote(
+        make_args(
+            identity_value="jfc:1",
+            identity_field="id",
+            customer=False,
+            prospect=True,
+            from_file=str(prospects),
+            to_file=str(leads),
+        )
+    )
+    assert json.loads(prospects.read_text()) == []
+    assert json.loads(leads.read_text())[0]["id"] == "jfc:1"
 
 
 def test_cmd_demote_missing_record(tmp_path):
