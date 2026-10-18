@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The philosophy — why build a CRM out of JSON files in git? · JSONCRM</title>
+  <meta name="description" content="The full reasoning behind JSONCRM: what a CRM actually is, what spreadsheets taught us, why the state itself should be the interface, and why AI agents change the answer.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/philosophy">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="The philosophy — why build a CRM out of JSON files in git?">
+  <meta property="og:description" content="CRMs combine a structured database of relationships with a process engine. JSONCRM makes the state itself the interface — shared by humans and AI agents.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/philosophy">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="index.html#features">Features</a>
+      <a href="index.html#quickstart">Try it</a>
+      <a href="index.html#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="./">← back to home</a>
+    <h1 class="section-title" style="text-align:left">The philosophy</h1>
+
+    <div class="verdict">
+      <p><strong>Why build a CRM on top of JSON?</strong> That's right — why not? If this doesn't
+      immediately tickle your hypothalamus, here is the longer answer.</p>
+    </div>
+
+    <div class="prose">
+      <h2>What a CRM actually is</h2>
+      <p>
+        CRMs are valuable because they combine two things most companies fail to systematize: a structured
+        database of customer relationships and a process engine that makes sure people actually do what they
+        said they would do. Contacts, companies, deals, and activities form a living timeline of every
+        interaction, while workflows make sure nothing quietly dies in a corner. The real power of a CRM is
+        not the UI that guides people through a process, or the data contained in its database. It is the
+        enforcement of consistent behavior at scale. In other words, it is the system that politely refuses
+        to let you forget your leads.
+      </p>
+
+      <h2>The spreadsheet lesson</h2>
+      <p>
+        Historically, tools like Salesforce and HubSpot wrapped this idea in large, heavy applications. But
+        of course spreadsheets have always been here, and proved you could get surprisingly far with
+        something much simpler. Rows become records, tabs become pipeline stages, and humans drag deals
+        around and call it a process. It works, until it very much does not. No enforcement, no structure,
+        no automation. Just optimism and increasingly questionable data. One lesson is: the CRM is not the
+        interface. It is the combination of state and process. The interface is just the surface.
+      </p>
+
+      <h2>The state is the interface</h2>
+      <p>
+        JSONCRM takes this one step further by making the state itself the interface. Instead of hiding data
+        inside an application, everything lives as structured JSON files. Contacts, deals, pipelines. You can
+        open them, edit them, diff them, and roll them back. Git handles history and collaboration. Code
+        handles the process, enforcing stage transitions, next actions, and updates. No mystery, no black
+        box. Just files as the source of truth and tools making sure things happen the way they should.
+      </p>
+
+      <h2>"But we already have databases"</h2>
+      <p>
+        Now, if you are a human reading this, then you may think: well, we already have databases. And it's
+        true! We have databases and they are great. But as databases become more complex and rich they
+        become harder to manipulate, and then you need UIs and so on and we are back to the same place. As a
+        human you may be very good using CRM user interfaces. But guess who's not that good? That's right,
+        AI agents.
+      </p>
+      <p>
+        The real shift is that JSONCRM is native to AI agents. JSON is exactly the kind of structure
+        language models can read and write without friction. Instead of forcing an agent to click through a
+        UI, you give it the actual state of the business. It can reason over deals, update records, draft
+        follow ups, and trigger actions through tools. Humans and agents now operate on the same substrate:
+        inspectable files, auditable changes, and explicit workflows. The result is a CRM that is not just
+        simpler or more flexible, but fundamentally different. A git backed, agent native system where
+        customer data, process, and automation are all transparent, programmable, and shared between humans
+        and AI.
+      </p>
+
+      <h2>Extensions become trivial</h2>
+      <p>
+        On top of that, extensions become trivial instead of a multi month integration project. Because
+        everything is just files and tools, you can plug in new capabilities as simple services that read
+        and write JSON. An MCP server can watch for new leads and enrich them with data from external
+        sources. Another tool can sync activity with email, trigger campaigns, or update product usage
+        signals. Want to score deals, enrich contacts, or run outbound sequences? Add a tool that reads the
+        files, writes updates, and you are done. No SDK hell, no brittle UI automation, no fighting someone
+        else's data model. Just composable building blocks operating on shared state. The result is a system
+        where adding new capabilities can be done with a tiny script, not negotiating with a platform.
+      </p>
+    </div>
+
+    <div class="cta-band">
+      <h2>Convinced? It's a one-minute install.</h2>
+      <p>Or go read a comparison first — the spreadsheet one is where most people start.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="index.html#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="index.html#compare">Comparisons</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="index.html#quickstart">Quick start</a></li>
+          <li><a href="index.html#features">Features</a></li>
+          <li><a href="index.html#mcp">Connect an agent</a></li>
+          <li><a href="index.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="vs/twenty.html">vs Twenty</a></li>
+          <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/spreadsheets.html">vs spreadsheets</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
