@@ -79,6 +79,44 @@ def test_custom_config_merges_missing_keys(tmp_path):
     assert cfg.disqualified_score == "❌"
 
 
+def test_scores_null_falls_back_to_default(tmp_path):
+    """An explicit `"scores": null` means 'no override', same as omitting the key."""
+    config_path = tmp_path / "null_scores.json"
+    config_path.write_text(json.dumps({"scores": None}))
+    cfg = Config.from_file(path=str(config_path))
+    assert cfg.score_order == {
+        "⭐": 1,
+        "⭐⭐": 2,
+        "⭐⭐⭐": 3,
+        "⭐⭐⭐⭐": 4,
+        "⭐⭐⭐⭐⭐": 5,
+    }
+    assert cfg.disqualified_score == "❌"
+
+
+def test_scores_empty_order_falls_back_to_default(tmp_path):
+    """An explicit empty `order` list means 'no override', same as omitting the key —
+    not a config with zero valid scores."""
+    config_path = tmp_path / "empty_order.json"
+    config_path.write_text(json.dumps({"scores": {"order": []}}))
+    cfg = Config.from_file(path=str(config_path))
+    assert cfg.score_order == {
+        "⭐": 1,
+        "⭐⭐": 2,
+        "⭐⭐⭐": 3,
+        "⭐⭐⭐⭐": 4,
+        "⭐⭐⭐⭐⭐": 5,
+    }
+    assert cfg.score_order_descending == ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐", "⭐"]
+
+
+def test_scores_empty_disqualified_falls_back_to_default(tmp_path):
+    config_path = tmp_path / "empty_disqualified.json"
+    config_path.write_text(json.dumps({"scores": {"disqualified": ""}}))
+    cfg = Config.from_file(path=str(config_path))
+    assert cfg.disqualified_score == "❌"
+
+
 def test_apply_config_rebinds_schema(tmp_path):
     """Loading a custom config and applying it should rebind schema constants."""
     import jsoncrm.schema as schema

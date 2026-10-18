@@ -181,10 +181,25 @@ def _output_record_result(args, record, dry_run):
         print(output)
 
 
+def _valid_scores(args):
+    """Return (set of valid score values, human-readable description) from config."""
+    from jsoncrm.config import Config
+    cfg = Config.from_file(getattr(args, "config", None))
+    valid = set(cfg.score_order) | {cfg.disqualified_score}
+    description = ", ".join(repr(s) for s in cfg.score_order_descending + [cfg.disqualified_score])
+    return valid, description
+
+
 def cmd_add(args):
     database_path = Path(args.database_file)
     item = _load_item_dict(args, "add")
     _require_identity(item, "add")
+
+    valid_scores, valid_description = _valid_scores(args)
+    score = item.get("score")
+    if score is not None and score not in valid_scores:
+        print(f"Error: invalid score {score!r} — must be one of {valid_description}, or null")
+        sys.exit(1)
 
     records = _load_records(database_path)
 
@@ -436,8 +451,11 @@ def cmd_merge(args):
         print("Error: source file must be a JSON array")
         sys.exit(1)
 
+    valid_scores, valid_description = _valid_scores(args)
     scored = [r for r in source_records if r.get("score")]
     unscored = [r for r in source_records if not r.get("score")]
+    invalid = [r for r in scored if r.get("score") not in valid_scores]
+    scored = [r for r in scored if r.get("score") in valid_scores]
 
     if args.leads_file:
         known_urls = build_known_urls(leads_file=leads_path)
@@ -456,10 +474,16 @@ def cmd_merge(args):
             if url:
                 known_urls.add(url)
 
+    # Invalid-score records are never merged or dropped — they stay in the
+    # source file alongside unscored ones so a human (or the next run) can
+    # fix the score and retry.
+    remaining = unscored + invalid
+
     if _jout({
         "source_total": len(source_records),
         "scored": len(scored),
         "unscored": len(unscored),
+        "invalid": invalid,
         "added": added,
         "skipped": skipped,
         "dry_run": args.dry_run,
@@ -468,12 +492,16 @@ def cmd_merge(args):
             if added:
                 merged = existing_leads + added
                 atomic_write_json(leads_path, merged)
-            if unscored != source_records:
-                atomic_write_json(source_path, unscored)
+            if remaining != source_records:
+                atomic_write_json(source_path, remaining)
+        if invalid:
+            sys.exit(1)
         return
 
     print(f"Source:   {len(source_records)} records")
     print(f"Scored:   {len(scored)}  |  Unscored: {len(unscored)} (left in source file)")
+    if invalid:
+        print(f"Invalid:  {len(invalid)} (score not in {valid_description}; left in source file)")
     print(f"Add:      {len(added)}")
     print(f"Skip:     {len(skipped)} (already in pipeline)")
 
@@ -487,12 +515,23 @@ def cmd_merge(args):
         for r in added:
             print(f"  {r.get('name')}  —  {r.get('company')}  ({r.get('linkedin_url')})")
 
+    if invalid:
+        print("\nInvalid score (not merged, left in source file):")
+        for r in invalid:
+            print(f"  {r.get('name')}  —  {r.get('linkedin_url')}  (score: {r.get('score')!r})")
+
     if args.dry_run:
         print("\n(dry run — no files modified)")
+        if invalid:
+            sys.exit(1)
         return
 
     if not added and not scored:
         print("\nNothing to do.")
+        if remaining != source_records:
+            atomic_write_json(source_path, remaining)
+        if invalid:
+            sys.exit(1)
         return
 
     if added:
@@ -500,11 +539,14 @@ def cmd_merge(args):
         atomic_write_json(leads_path, merged)
         print(f"\nWrote {len(merged)} records to {leads_path}")
 
-    if unscored != source_records:
-        atomic_write_json(source_path, unscored)
-        print(f"Updated {source_path.name}: {len(unscored)} unscored records remaining")
+    if remaining != source_records:
+        atomic_write_json(source_path, remaining)
+        print(f"Updated {source_path.name}: {len(remaining)} unscored/invalid record(s) remaining")
     else:
         print(f"No changes to {source_path.name}")
+
+    if invalid:
+        sys.exit(1)
 
 
 def cmd_deduplicate(args):

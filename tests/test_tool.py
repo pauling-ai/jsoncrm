@@ -106,6 +106,37 @@ def test_cmd_add_requires_identity(tmp_path):
     assert exc.value.code == 1
 
 
+def test_cmd_add_rejects_invalid_score(tmp_path):
+    db = tmp_path / "db.json"
+    db.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_add(
+            make_args(
+                database_file=str(db),
+                item_file=None,
+                item_json='{"name":"Bad","linkedin_url":"https://linkedin.com/in/bad","score":"3"}',
+                output_file=None,
+            )
+        )
+    assert exc.value.code == 1
+    assert json.loads(db.read_text()) == []
+
+
+def test_cmd_add_accepts_disqualified_score(tmp_path):
+    db = tmp_path / "db.json"
+    db.write_text("[]\n")
+    tool.cmd_add(
+        make_args(
+            database_file=str(db),
+            item_file=None,
+            item_json='{"name":"Dq","linkedin_url":"https://linkedin.com/in/dq","score":"❌"}',
+            output_file=None,
+        )
+    )
+    data = json.loads(db.read_text())
+    assert data[0]["score"] == "❌"
+
+
 # --- cmd_delete ---
 
 def test_cmd_delete_by_linkedin_url(tmp_path, capsys):
@@ -424,6 +455,43 @@ def test_cmd_merge_dry_run_does_not_write(tmp_path, capsys):
     dst.write_text("[]\n")
     tool.cmd_merge(make_args(file=str(src), leads_file=str(dst), dry_run=True))
     assert json.loads(dst.read_text()) == []
+
+
+def test_cmd_merge_rejects_invalid_score_but_merges_the_rest(tmp_path, capsys):
+    src = tmp_path / "src.json"
+    src.write_text(
+        json.dumps(
+            [
+                {"name": "Good", "linkedin_url": "https://linkedin.com/in/good", "score": "⭐⭐⭐"},
+                {"name": "Bad", "linkedin_url": "https://linkedin.com/in/bad", "score": "★☆☆☆☆"},
+            ]
+        )
+    )
+    dst = tmp_path / "dst.json"
+    dst.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_merge(make_args(file=str(src), leads_file=str(dst), dry_run=False))
+    assert exc.value.code == 1
+
+    dst_data = json.loads(dst.read_text())
+    assert len(dst_data) == 1
+    assert dst_data[0]["name"] == "Good"
+
+    src_data = json.loads(src.read_text())
+    assert len(src_data) == 1
+    assert src_data[0]["name"] == "Bad"
+
+
+def test_cmd_merge_invalid_score_dry_run_does_not_write(tmp_path, capsys):
+    src = tmp_path / "src.json"
+    src.write_text(json.dumps([{"name": "Bad", "linkedin_url": "https://linkedin.com/in/bad", "score": "nonsense"}]))
+    dst = tmp_path / "dst.json"
+    dst.write_text("[]\n")
+    with pytest.raises(SystemExit) as exc:
+        tool.cmd_merge(make_args(file=str(src), leads_file=str(dst), dry_run=True))
+    assert exc.value.code == 1
+    assert json.loads(dst.read_text()) == []
+    assert len(json.loads(src.read_text())) == 1
 
 
 # --- cmd_deduplicate ---

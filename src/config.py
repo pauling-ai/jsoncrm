@@ -97,19 +97,26 @@ class Config:
 
     # --- scores ---
 
+    def _scores_block(self):
+        # A missing, null, or explicitly empty "scores" block all mean the
+        # same thing: no override was really provided, so fall back to the
+        # default rather than silently producing zero valid scores or
+        # crashing on None.
+        return self._data.get("scores") or DEFAULT_MARKETING_CONFIG["scores"]
+
     @property
     def score_order(self):
-        order = self._data["scores"]["order"]
+        order = self._scores_block().get("order") or DEFAULT_MARKETING_CONFIG["scores"]["order"]
         return {s: i + 1 for i, s in enumerate(order)}
 
     @property
     def score_order_descending(self):
-        order = self._data["scores"]["order"]
+        order = self._scores_block().get("order") or DEFAULT_MARKETING_CONFIG["scores"]["order"]
         return list(reversed(order))
 
     @property
     def disqualified_score(self):
-        return self._data["scores"].get("disqualified")
+        return self._scores_block().get("disqualified") or DEFAULT_MARKETING_CONFIG["scores"]["disqualified"]
 
     # --- blocklist ---
 

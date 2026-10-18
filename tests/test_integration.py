@@ -289,6 +289,40 @@ def test_add_rejects_non_object_item():
     assert "add item must be a JSON object" in out
 
 
+def test_add_rejects_invalid_score():
+    before = TEST_FILE.read_text()
+    out, rc = run(
+        "add",
+        "--database_file", str(TEST_FILE),
+        "--item_json", '{"name":"Bad Score","linkedin_url":"https://www.linkedin.com/in/bad-score/","score":"3"}',
+    )
+    assert rc != 0
+    assert "invalid score" in out.lower()
+    # nothing written
+    assert TEST_FILE.read_text() == before
+    assert not any(r.get("name") == "Bad Score" for r in json.loads(TEST_FILE.read_text()))
+
+
+def test_add_accepts_disqualified_score():
+    out, rc = run(
+        "add",
+        "--database_file", str(TEST_FILE),
+        "--item_json", '{"name":"Dq","linkedin_url":"https://www.linkedin.com/in/dq/","score":"❌"}',
+    )
+    assert rc == 0
+    assert any(r.get("name") == "Dq" for r in json.loads(TEST_FILE.read_text()))
+
+
+def test_add_accepts_null_score():
+    out, rc = run(
+        "add",
+        "--database_file", str(TEST_FILE),
+        "--item_json", '{"name":"NullScore","linkedin_url":"https://www.linkedin.com/in/null-score/","score":null}',
+    )
+    assert rc == 0
+    assert any(r.get("name") == "NullScore" for r in json.loads(TEST_FILE.read_text()))
+
+
 # --- delete ---
 
 def test_delete_by_linkedin_url():
@@ -1098,6 +1132,85 @@ def test_merge_missing_file():
     out, rc = run("merge", "crm/does_not_exist.json", "--leads-file", str(TEST_MERGE_DST))
     assert rc != 0
     assert "not found" in out.lower()
+
+
+def test_merge_rejects_invalid_score_but_merges_the_rest():
+    write_merge(
+        src_records=[
+            {"name": "Good One", "linkedin_url": "https://www.linkedin.com/in/good-one/",
+             "company": "GoodCo", "score": "⭐⭐⭐"},
+            {"name": "Bad Score", "linkedin_url": "https://www.linkedin.com/in/bad-score/",
+             "company": "BadCo", "score": "★☆☆☆☆"},
+            {"name": "Still Unscored", "linkedin_url": "https://www.linkedin.com/in/unscored/",
+             "company": "C", "score": None},
+        ],
+    )
+    out, rc = run("merge", str(TEST_MERGE_SRC), "--leads-file", str(TEST_MERGE_DST))
+    # nonzero exit signals the batch had a problem that needs a human/retry
+    assert rc != 0
+    assert "invalid" in out.lower()
+    assert "Bad Score" in out
+
+    # the good record still landed
+    dst = json.loads(TEST_MERGE_DST.read_text())
+    assert len(dst) == 1
+    assert dst[0]["name"] == "Good One"
+
+    # the invalid-score record and the unscored one are both left behind for a retry
+    src = json.loads(TEST_MERGE_SRC.read_text())
+    assert {r["name"] for r in src} == {"Bad Score", "Still Unscored"}
+
+
+def test_merge_invalid_score_only_batch_writes_nothing_but_still_errors():
+    write_merge(
+        src_records=[
+            {"name": "Bad Score", "linkedin_url": "https://www.linkedin.com/in/bad-score-only/",
+             "company": "BadCo", "score": 3},
+        ],
+    )
+    out, rc = run("merge", str(TEST_MERGE_SRC), "--leads-file", str(TEST_MERGE_DST))
+    assert rc != 0
+    dst = json.loads(TEST_MERGE_DST.read_text())
+    assert dst == []
+    src = json.loads(TEST_MERGE_SRC.read_text())
+    assert len(src) == 1
+    assert src[0]["name"] == "Bad Score"
+
+
+def test_merge_invalid_score_dry_run_does_not_write_and_still_errors():
+    write_merge(
+        src_records=[
+            {"name": "Bad Score", "linkedin_url": "https://www.linkedin.com/in/bad-score-dry/",
+             "company": "BadCo", "score": "nonsense"},
+        ],
+    )
+    out, rc = run("merge", str(TEST_MERGE_SRC), "--leads-file", str(TEST_MERGE_DST), "--dry-run")
+    assert rc != 0
+    assert "dry run" in out.lower()
+    assert json.loads(TEST_MERGE_DST.read_text()) == []
+    assert len(json.loads(TEST_MERGE_SRC.read_text())) == 1
+
+
+def test_merge_invalid_score_json_mode():
+    write_merge(
+        src_records=[
+            {"name": "Good One", "linkedin_url": "https://www.linkedin.com/in/good-json/",
+             "company": "GoodCo", "score": "⭐"},
+            {"name": "Bad Score", "linkedin_url": "https://www.linkedin.com/in/bad-json/",
+             "company": "BadCo", "score": "3"},
+        ],
+    )
+    out, rc = run("merge", str(TEST_MERGE_SRC), "--leads-file", str(TEST_MERGE_DST), "--json")
+    assert rc != 0
+    payload = json.loads(out)
+    assert len(payload["invalid"]) == 1
+    assert payload["invalid"][0]["name"] == "Bad Score"
+    assert len(payload["added"]) == 1
+    assert payload["added"][0]["name"] == "Good One"
+    # the write still happened for the valid record despite the error exit code
+    dst = json.loads(TEST_MERGE_DST.read_text())
+    assert len(dst) == 1
+    assert dst[0]["name"] == "Good One"
 
 
 def write_deduplicate(src_records, leads=None, prospects=None, customers=None):
