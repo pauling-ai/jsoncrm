@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs a spreadsheet — when your pipeline outgrows the sheet</title>
+  <meta name="description" content="Spreadsheets are the real incumbent CRM: rows are records, tabs are stages. But an Excel CRM or Google Sheets CRM breaks on schema, enforcement, history, and AI agents mangling your CSV. Here's the honest upgrade path.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/spreadsheets">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs a spreadsheet — when your pipeline outgrows the sheet">
+  <meta property="og:description" content="Sheets have no schema, no enforcement, no audit trail, and agents corrupt CSVs. JSON keeps the simplicity of files, adds structure, git history, and real tooling.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/spreadsheets">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs a spreadsheet</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> the spreadsheet is the real incumbent — rows are records, tabs
+      are stages, and an Excel CRM or Google Sheets CRM works surprisingly far. It breaks in four places:
+      <strong>no schema, no enforcement, no history, and no safe way for an AI agent to touch it.</strong>
+      JSONCRM is the smallest possible spreadsheet-CRM upgrade that fixes all four while keeping the
+      "it's just files" simplicity.</p>
+    </div>
+
+    <div class="prose">
+      <p>
+        Let's be fair first: if you're tracking twenty leads and you already know pivot tables, a
+        spreadsheet is a fine CRM. Most CRM software is over-engineered for that job. The question is what
+        stops working as the pipeline grows — and especially the moment an AI agent enters the picture.
+      </p>
+
+      <h2>1. Schema: vibes vs validation</h2>
+      <p>
+        A sheet will happily accept "⭐⭐⭐⭐", "4 stars", "4★", and "four" in the same column. Every consumer
+        of that data — including the agent you'll ask to "promote everyone above three stars" — now has to
+        guess. JSONCRM defines score values, identity fields, and stage files in <code>.crm.json</code>, and
+        <code>jsoncrm validate</code> checks structural integrity on demand.
+      </p>
+
+      <h2>2. Process: drag-and-hope vs enforced transitions</h2>
+      <p>
+        In a sheet, "stages" are tabs and the process is whatever people remember. Records get lost between
+        tabs, duplicated across them, or promoted backwards by accident. JSONCRM's transitions are explicit:
+        <code>leads → prospects → customers</code> is config, <code>promote</code>/<code>demote</code> move
+        records along legal paths, and an invalid move isn't a formula error — it just doesn't exist.
+      </p>
+
+      <h2>3. History: "final_v7_REAL.xlsx" vs git</h2>
+      <p>
+        Who changed this deal's score, when, and why? In a sheet: email attachments and hope. (Google Sheets
+        has version history — for one file, one owner, in one cloud.) In JSONCRM every change is a diff and
+        every state is a commit: <code>git log -p prospects.json</code> is your audit log,
+        <code>git revert</code> is your undo, and "Open PR" makes review a workflow instead of a trust
+        exercise.
+      </p>
+
+      <h2>4. Agents: CSV roulette vs native tooling</h2>
+      <p>
+        This is the 2026 problem. Asking an LLM to edit a spreadsheet means asking it to rewrite a whole
+        serialization format around one cell — and CSV/Excel are exactly the formats models mangle
+        (quoting, encoding, formulas-as-data). JSON is what models read and write natively. On top of that,
+        JSONCRM gives agents a CLI and a first-party MCP server, with <code>--dry-run</code> so every
+        proposed write is inspectable before it lands. The agent works on your CRM the way it works on a
+        codebase: read state, propose a diff, apply on approval.
+      </p>
+
+      <h2>Side by side</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Spreadsheet</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Format</td>
+            <td class="col-us">JSON — structured, machine-native</td>
+            <td>Cells — flexible, human-casual</td>
+          </tr>
+          <tr>
+            <td>Schema</td>
+            <td class="col-us">Config-defined stages, scores, identity + <code>validate</code></td>
+            <td>Whatever was typed that day</td>
+          </tr>
+          <tr>
+            <td>Process enforcement</td>
+            <td class="col-us">Legal transitions only (<code>promote</code>/<code>demote</code>)</td>
+            <td>Tabs and discipline</td>
+          </tr>
+          <tr>
+            <td>History</td>
+            <td class="col-us">git log / revert / PR review</td>
+            <td>Attachments and version history (per-file, per-cloud)</td>
+          </tr>
+          <tr>
+            <td>AI agent editing</td>
+            <td class="col-us">Native: files + CLI + MCP with dry-run</td>
+            <td>CSV/Excel rewriting — corruption roulette</td>
+          </tr>
+          <tr>
+            <td>Merge two people's changes</td>
+            <td class="col-us">git merge (line-level JSON diffs)</td>
+            <td>Copy-paste reconciliation call</td>
+          </tr>
+          <tr>
+            <td>Duplicates &amp; blocklist</td>
+            <td class="col-us"><code>deduplicate</code>, <code>filter-competitors</code></td>
+            <td>Conditional formatting you wrote once and forgot</td>
+          </tr>
+          <tr>
+            <td>Ad-hoc analysis</td>
+            <td class="col-us">Export to JSON/CSV (<code>dump_emails</code>) — or just open the files</td>
+            <td><span class="tick">Pivot tables, charts — unbeatable</span></td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td class="col-us">Free, AGPL-3.0</td>
+            <td>Roughly free</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="choose">
+      <div class="card">
+        <h3>📊 Keep the spreadsheet if…</h3>
+        <ul>
+          <li>Your pipeline is <strong>small and stable</strong> (a couple dozen live records)</li>
+          <li>Ad-hoc pivots and charts are how you actually think</li>
+          <li>Everyone who touches it already shares the one sheet happily</li>
+          <li>No agent will ever be asked to edit it</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Move to JSONCRM if…</h3>
+        <ul>
+          <li>Records number in the hundreds+, or intake is automated</li>
+          <li>"Which tab is Alice in?" has no reliable answer anymore</li>
+          <li>You want an audit trail and review instead of trust</li>
+          <li>You want to tell an agent <em>"score and promote the ready ones"</em> and get a diff back</li>
+          <li>You want it to still just be files you can open</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>Switching is boring, on purpose</h2>
+      <p>
+        Your sheet is already a table of flat records — which is exactly JSONCRM's data model. Paste a
+        column-mapped export into <code>leads.json</code>, write a fifteen-line <code>.crm.json</code>, run
+        <code>jsoncrm validate</code>, and you've upgraded the substrate without changing what the data
+        means. And the door stays open: <code>dump_emails</code> and plain JSON exports mean the
+        spreadsheet can stay your analysis layer while the files become the system of record.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Spreadsheet CRM — common questions</h2>
+    </div>
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Is a spreadsheet good enough as a CRM?</summary>
+        <div class="faq-body">
+          <p>For a small, stable pipeline — a couple dozen live leads, one owner, no automation — yes, and a spreadsheet CRM is often the right amount of tool. It stops being enough when intake scales, records multiply across tabs, or you want an AI agent to edit the data: no schema, no enforced process, no audit trail, and CSV/Excel is exactly the format LLMs mangle.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I move my CRM out of Excel or Google Sheets?</summary>
+        <div class="faq-body">
+          <p>Your sheet is already a table of flat records, which is JSONCRM's data model. Export it, map columns to fields, save the rows as a JSON array in <code>leads.json</code>, write a small <code>.crm.json</code> defining stages and scores, then run <code>jsoncrm validate</code> to catch anything malformed. From then on, git tracks every change.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Why is JSON better than CSV for AI agents?</summary>
+        <div class="faq-body">
+          <p>JSON is the format LLMs read and write natively, and it carries structure: fields are named, types are unambiguous, and a validator can check them. CSV leans on quoting conventions and column position — one stray comma or encoding surprise and an agent silently corrupts the file. JSONCRM adds a CLI and MCP server with dry-run previews on top, so agent edits are proposed as diffs you approve.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is a spreadsheet good enough as a CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For a small, stable pipeline with one owner and no automation, yes. It stops being enough when intake scales or AI agents edit the data: spreadsheets have no schema, no enforced process, no audit trail, and CSV is a format LLMs frequently corrupt." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I move my CRM out of Excel or Google Sheets?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Export the sheet, map columns to fields in flat JSON records, save them as leads.json, write a small .crm.json defining stages and scores, and run jsoncrm validate. Git then tracks every change." }
+        },
+        {
+          "@type": "Question",
+          "name": "Why is JSON better than CSV for AI agents?",
+          "acceptedAnswer": { "@type": "Answer", "text": "JSON is the format LLMs read and write natively, with named fields and unambiguous types a validator can check. CSV depends on quoting conventions and column order, where one stray comma lets an agent silently corrupt the file. JSONCRM adds a CLI and MCP server with dry-run previews on agent writes." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>Keep the simplicity. Lose the chaos.</h2>
+      <p>It's still just files — now with schema, history, and agents that can't wreck it.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="../#compare">All comparisons</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

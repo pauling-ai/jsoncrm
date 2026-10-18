@@ -3,10 +3,509 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>jsoncrm</title>
+  <title>JSONCRM — a CRM that's just JSON files in git, built for AI agents</title>
+  <meta name="description" content="JSONCRM is a free, open-source CRM where your pipeline lives as plain JSON files in git. CLI, local web UI, and a first-party MCP server so AI agents and humans work on the same data. No accounts, no cloud, no lock-in.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="JSONCRM — a CRM that's just JSON files in git, built for AI agents">
+  <meta property="og:description" content="Your pipeline is plain JSON files you can diff. Git is the audit log. Agents get a first-party MCP server. Free and open source.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/">
+  <meta property="og:image" content="https://www.jsoncrm.dev/assets/favicon.svg">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="JSONCRM — a CRM that's just JSON files in git, built for AI agents">
+  <meta name="twitter:description" content="Your pipeline is plain JSON files you can diff. Git is the audit log. Agents get a first-party MCP server. Free and open source.">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "JSONCRM",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "url": "https://www.jsoncrm.dev/",
+    "description": "A free, open-source CRM built on git-tracked JSON files, designed for AI agents and humans: CLI, local web UI, and a first-party MCP server.",
+    "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "author": { "@type": "Organization", "name": "Pauling.AI", "url": "https://github.com/pauling-ai" }
+  }
+  </script>
 </head>
 <body>
-  <h1>jsoncrm</h1>
-  <p>Homepage for jsoncrm. It's coming!</p>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#quickstart">Try it</a>
+      <a href="#agents">For agents</a>
+      <a href="#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ hero ============ -->
+<section class="hero">
+  <div class="container">
+    <span class="eyebrow">free &amp; open source · AGPL-3.0</span>
+    <h1>A CRM that's just<br>JSON files in <span class="accent">git</span>.</h1>
+    <p class="hero-sub">
+      Built for AI agents and the humans who review them. No accounts, no cloud, no lock-in —
+      your pipeline is plain files you can read, diff, and roll back, and your agents get a
+      first-class MCP toolset.
+    </p>
+    <div class="install-box">
+      <code>pip install "jsoncrm[web,mcp] @ git+https://github.com/pauling-ai/jsoncrm"</code>
+      <button class="copy-btn" type="button" aria-label="Copy install command">copy</button>
+    </div>
+    <p class="hero-note">Includes the local web UI and the MCP server · Python 3.10+ · <a href="#quickstart">60-second quick start</a></p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="#quickstart">Get started</a>
+      <a class="btn btn-ghost" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">Source on GitHub</a>
+    </div>
+    <div class="badges">
+      <span>$0, no seats, no credits</span>
+      <span>data stays in your repo</span>
+      <span>git history = audit log</span>
+      <span>first-party MCP server</span>
+    </div>
+
+    <div class="terminal" role="img" aria-label="Example JSONCRM terminal session">
+      <div class="term-bar"><span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span><span class="term-title">crm — zsh</span></div>
+      <div class="term-body">
+<span class="t-prompt">$</span> <span class="t-cmd">jsoncrm add --database_file leads.json --item_json '{"name":"Alice Testerson","company":"TestPharma","score":"⭐⭐⭐⭐"}'</span>
+<span class="t-out">{
+  "name": "Alice Testerson",
+  "company": "TestPharma",
+  "score": "⭐⭐⭐⭐",
+  …
+}</span>
+<span class="t-prompt">$</span> <span class="t-cmd">jsoncrm promote "https://linkedin.com/in/alice-testerson" --lead</span>
+<span class="t-out">Promoted: Alice Testerson  leads.json → prospects.json</span>
+<span class="t-prompt">$</span> <span class="t-cmd">jsoncrm stats</span>
+<span class="t-out">Leads: 12 (8 scored, 5 contacted)  <span class="t-gold">⭐⭐⭐⭐  3</span></span>
+<span class="t-out">Prospects: 5 (4 active, 1 closed)</span>
+<span class="t-out">Customers: 2 contacts (2 companies, 1 paid)</span>
+<span class="t-prompt">$</span> <span class="t-cmd">git diff --stat && git commit -am "pipeline: promote Alice"</span>
+<span class="t-out">leads.json     | 2 +-</span>
+<span class="t-out">prospects.json | 2 +-</span>
+<span class="t-prompt">$</span> <span class="t-cmd">jsoncrm serve</span>
+<span class="t-out">jsoncrm serve running at <span class="t-link">http://127.0.0.1:7341</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ why ============ -->
+<section class="alt">
+  <div class="container">
+    <h2 class="section-title">The state is the interface</h2>
+    <p class="section-sub">
+      Spreadsheets proved a CRM doesn't need an app. JSONCRM goes one step further:
+      the structured state itself is the product, shared by humans and agents.
+    </p>
+    <div class="grid grid-3">
+      <div class="card">
+        <span class="icon">🗂️</span>
+        <h3>Files are the database</h3>
+        <p>Leads, prospects, customers — one JSON array per stage. Open them in any editor, script them with anything, grep them. No hidden database, no export step.</p>
+      </div>
+      <div class="card">
+        <span class="icon">📜</span>
+        <h3>Git is the audit log</h3>
+        <p>Every change is a diff you can review and a commit you can revert. Who touched a record, when, and why — solved by the tool you already trust.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🤖</span>
+        <h3>Agents are first-class users</h3>
+        <p>JSON is what LLMs read and write without friction. Instead of clicking a UI, the agent gets the actual state of the business — via CLI, MCP tools, or plain file I/O.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ features ============ -->
+<section id="features">
+  <div class="container">
+    <h2 class="section-title">Everything a pipeline needs, nothing it doesn't</h2>
+    <p class="section-sub">A single pip package. No containers, no database server, no signup.</p>
+    <div class="grid grid-4">
+      <div class="card">
+        <span class="icon">🔀</span>
+        <h3>Enforced pipeline</h3>
+        <p>Stages and legal transitions live in <code>.crm.json</code>. <code>promote</code> and <code>demote</code> move records; invalid moves simply don't exist.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🖥️</span>
+        <h3>Local web UI</h3>
+        <p><code>jsoncrm serve</code> gives humans a spreadsheet-like UI: inline editing, search, sort, pagination, dark mode — bound to the same files.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔌</span>
+        <h3>First-party MCP server</h3>
+        <p><code>jsoncrm mcp</code> exposes every CLI command as an MCP tool with matching schemas, so Claude, Cursor, or Codex can drive the CRM natively.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🧪</span>
+        <h3>Dry-run by default available</h3>
+        <p>Every write command takes <code>--dry-run</code> / <code>--apply</code>. Let an agent preview a change, review the JSON, then commit it explicitly.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔍</span>
+        <h3>Search &amp; stats CLI</h3>
+        <p><code>search</code>, <code>list</code>, <code>top</code>, <code>recent</code>, and <code>stats</code> answer "who's in the pipe and what needs attention" in one line.</p>
+      </div>
+      <div class="card">
+        <span class="icon">✅</span>
+        <h3>Validation &amp; hygiene</h3>
+        <p><code>validate</code> checks structural integrity. <code>deduplicate</code>, <code>filter-competitors</code>, and <code>merge</code> keep large intakes clean.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🗃️</span>
+        <h3>Out-of-git backups</h3>
+        <p>Git history won't save you from damage to <code>.git</code> itself. <code>jsoncrm backup</code> writes atomic ZIP snapshots outside the repo.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔃</span>
+        <h3>GitHub PR workflow</h3>
+        <p>Run <code>serve</code> with a token and the "Open PR" button commits your pipeline and opens a pull request — review CRM changes like code.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ humans vs agents ============ -->
+<section class="alt" id="agents">
+  <div class="container">
+    <h2 class="section-title">One substrate, two kinds of user</h2>
+    <p class="section-sub">Humans and agents operating on the same files — that's the whole idea.</p>
+    <div class="grid grid-2">
+      <div class="card">
+        <span class="icon">👤</span>
+        <h3>Humans</h3>
+        <p>Browse and edit in the web UI (<code>jsoncrm serve</code>). Use the CLI for one-offs. Review changes as git diffs or GitHub PRs. No prompt engineering required.</p>
+      </div>
+      <div class="card">
+        <span class="icon">🤖</span>
+        <h3>AI agents</h3>
+        <p>Read the JSON directly, or call the CLI / MCP tools. Score leads with external data, draft follow-ups, promote qualified records — every change auditable in git, every write previewable with <code>--dry-run</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ quickstart ============ -->
+<section id="quickstart">
+  <div class="container">
+    <h2 class="section-title">Try it in about a minute</h2>
+    <p class="section-sub">No account, no cloud, no configuration service. A directory, three files, and a config.</p>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Install</h3>
+        <div class="code-block"><span class="c"># web UI + MCP server</span>
+pip install "jsoncrm[web,mcp] @ git+https://github.com/pauling-ai/jsoncrm"</div>
+        <p>Core CLI only: <code>pip install git+https://github.com/pauling-ai/jsoncrm</code>. Requires Python 3.10+.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Create the CRM</h3>
+        <div class="code-block">mkdir my-crm && cd my-crm
+echo '[]' &gt; leads.json
+echo '[]' &gt; prospects.json
+echo '[]' &gt; customers.json
+git init</div>
+        <p>Then save this as <code>.crm.json</code> — it defines the pipeline, identity field, and score scale:</p>
+        <div class="code-block">{
+  "pipeline": {
+    "stages": [
+      {"name": "leads", "file": "leads.json"},
+      {"name": "prospects", "file": "prospects.json"},
+      {"name": "customers", "file": "customers.json"}
+    ],
+    "transitions": {"leads": ["prospects"], "prospects": ["customers"]}
+  },
+  "identity": {"primary": "linkedin_url", "fallback": ["id", "email"]},
+  "scores": {
+    "order": ["⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐"],
+    "disqualified": "❌"
+  }
+}</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Use it</h3>
+        <div class="code-block">jsoncrm add --database_file leads.json --item_json '{"name":"Alice Testerson","company":"TestPharma","linkedin_url":"https://linkedin.com/in/alice-testerson","score":"⭐⭐⭐⭐"}'
+jsoncrm search Alice
+jsoncrm stats
+jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
+        <p>Open <a href="http://127.0.0.1:7341">http://127.0.0.1:7341</a> and you have a pipeline with inline editing, search, and promote buttons — backed entirely by the files next to you.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ connect your agent ============ -->
+<section class="alt" id="mcp">
+  <div class="container">
+    <h2 class="section-title">Connect your agent</h2>
+    <p class="section-sub">The MCP server speaks the same language as the CLI — same commands, same schemas, plus <code>dry_run</code> support on writes.</p>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Claude Code</h3>
+        <div class="code-block">claude mcp add --transport stdio jsoncrm -- jsoncrm --config /absolute/path/to/.crm.json mcp</div>
+      </div>
+      <div class="card">
+        <h3>Claude Desktop</h3>
+        <div class="code-block">{
+  "mcpServers": {
+    "jsoncrm": {
+      "command": "jsoncrm",
+      "args": ["--config", "/absolute/path/to/.crm.json", "mcp"]
+    }
+  }
+}</div>
+      </div>
+    </div>
+    <p class="section-sub" style="margin-top:24px">
+      Any stdio MCP client works (Cursor, Codex, …). Then ask your agent things like
+      <em>"score the unscored leads in my CRM"</em> or <em>"promote everyone at ⭐⭐⭐⭐ or above and show me a dry run first."</em>
+    </p>
+  </div>
+</section>
+
+<!-- ============ compare ============ -->
+<section id="compare">
+  <div class="container">
+    <h2 class="section-title">How it compares</h2>
+    <p class="section-sub">The AI-native CRM category is being built in the cloud, priced in seats and credits. Here, it's a git repo.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th><a href="vs/hermit-crm.html">Hermit CRM</a></th>
+            <th><a href="vs/twenty.html">Twenty</a></th>
+            <th><a href="vs/attio.html">Attio</a></th>
+            <th><a href="vs/spreadsheets.html">Spreadsheet</a></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Price</td>
+            <td class="col-us"><span class="tick">Free, OSS</span></td>
+            <td>Free, OSS</td>
+            <td>$0 self-host · $9–19/user/mo cloud</td>
+            <td>3 free seats · $35–79/seat/mo + AI credits</td>
+            <td>~free</td>
+          </tr>
+          <tr>
+            <td>Your data lives in</td>
+            <td class="col-us"><span class="tick">JSON files in your git repo</span></td>
+            <td>Markdown in your git repo</td>
+            <td>A Postgres DB you run, or their cloud</td>
+            <td>Their cloud</td>
+            <td>An .xlsx attachment near you</td>
+          </tr>
+          <tr>
+            <td>History &amp; audit</td>
+            <td class="col-us"><span class="tick">git log / git revert</span></td>
+            <td>git log</td>
+            <td>DB backups, audit logs (paid tier)</td>
+            <td>Vendor's internal log</td>
+            <td>"pipeline_FINAL_v3.xlsx"</td>
+          </tr>
+          <tr>
+            <td>AI agent access</td>
+            <td class="col-us"><span class="tick">CLI + MCP + dry-run, unmetered</span></td>
+            <td>MCP server</td>
+            <td>API (rate-limited) + MCP</td>
+            <td>Credits-metered AI</td>
+            <td>CSV-mangling roulette</td>
+          </tr>
+          <tr>
+            <td>Infrastructure</td>
+            <td class="col-us"><span class="tick">pip install</span></td>
+            <td>pip install</td>
+            <td>Docker + Postgres</td>
+            <td>None (it's their cloud)</td>
+            <td>None</td>
+          </tr>
+          <tr>
+            <td>Web UI</td>
+            <td class="col-us"><span class="tick">Local (<code>serve</code>)</span></td>
+            <td>Local</td>
+            <td>Full hosted app</td>
+            <td>Full hosted app</td>
+            <td>The spreadsheet is the UI</td>
+          </tr>
+          <tr>
+            <td>License</td>
+            <td class="col-us">AGPL-3.0</td>
+            <td>Apache-2.0</td>
+            <td>AGPL-3.0 (core)</td>
+            <td>Proprietary</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Competitor pricing as of Oct 2026 — verify before buying. We're aiming to be the "just works and it's yours" column, not the cheapest column.</p>
+
+    <div class="vs-cards" style="margin-top:34px">
+      <a class="vs-card" href="vs/hermit-crm.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs Hermit CRM</h3>
+        <p>Two projects making the same bet — files + git + agents. Markdown-as-prose vs JSON-as-state, and when each wins.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="vs/twenty.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs Twenty</h3>
+        <p>The open Salesforce alternative vs the anti-platform. When you want a full CRM stack, and when you want files.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="vs/attio.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs Attio</h3>
+        <p>The funded AI-native SaaS — seats, credits, polish — vs the free, open, file-based counterfactual.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="vs/spreadsheets.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs a spreadsheet</h3>
+        <p>Your actual incumbent. Where sheets break (schema, enforcement, history, agents) and where they still win.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ faq ============ -->
+<section class="alt" id="faq">
+  <div class="container">
+    <h2 class="section-title">FAQ</h2>
+    <p class="section-sub">The questions everyone asks about a CRM made of files.</p>
+    <div style="max-width:760px;margin:0 auto">
+
+      <details>
+        <summary>Why JSON instead of Markdown or a database?</summary>
+        <div class="faq-body">
+          <p>JSON is the structure language models read and write natively — no parsing prose, no ORM, no connection string. And unlike a database, files stay human-inspectable, diffable, and portable. If you want a CRM that's mostly <em>notes about conversations</em>, a Markdown-native tool like Hermit CRM is a great fit; if you want structured records an agent can compute over (scores, stages, bulk updates), JSON is the better substrate.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Where does my data live, really?</summary>
+        <div class="faq-body">
+          <p>In JSON files inside a git repository on your machine (or your GitHub org). There is no JSONCRM account, no cloud, no telemetry. Because git history doesn't protect against damage to <code>.git</code> itself, <code>jsoncrm backup</code> also writes atomic ZIP snapshots outside the repository.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>I don't use AI agents. Is this still for me?</summary>
+        <div class="faq-body">
+          <p>Yes — start with <code>jsoncrm serve</code>. You get a local spreadsheet-style UI with inline editing, search, sorting, and promote/demote buttons, plus a CLI for quick lookups. The agent story is additive: it becomes valuable the day you ask an assistant to help with your pipeline.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>How do multiple people collaborate?</summary>
+        <div class="faq-body">
+          <p>The same way developers collaborate on code: branches, commits, and pull requests. The web UI's "Open PR" button (run <code>serve</code> with <code>--github-token</code> and <code>--repo</code>) commits pipeline changes to a branch and opens a PR for review.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Is it production-ready?</summary>
+        <div class="faq-body">
+          <p>It's 1.0 and dogfooded daily — Pauling.AI runs its own outbound pipeline on JSONCRM. Guardrails you'd want before trusting it with real data are in: structural validation, dry-run previews on every write, atomic file writes, and out-of-git backups. As with any young tool, keep the repo backed up.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>What does it cost? Can I use it at my company?</summary>
+        <div class="faq-body">
+          <p>It's free under AGPL-3.0. Companies that want to embed it without AGPL obligations can get a commercial license from <a href="mailto:info@pauling.ai">info@pauling.ai</a>.</p>
+        </div>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ cta ============ -->
+<section class="tight">
+  <div class="container">
+    <div class="cta-band">
+      <h2>Your CRM is a git repo.</h2>
+      <p>Clone it, diff it, script it, let an agent run it. Star the repo while you're here.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ pauling-ai/jsoncrm</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="#quickstart">Try it now</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues" target="_blank" rel="noopener">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="#quickstart">Quick start</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#mcp">Connect an agent</a></li>
+          <li><a href="#faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="vs/twenty.html">vs Twenty</a></li>
+          <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/spreadsheets.html">vs spreadsheets</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+<script src="assets/copy.js"></script>
 </body>
 </html>

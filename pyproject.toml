@@ -1,10 +1,31 @@
 [project]
 name = "jsoncrm"
-version = "0.1.0"
-description = "A generic JSON-file CRM pipeline tool"
+version = "1.0.0"
+description = "A git-tracked, JSON-file CRM built for AI agents — CLI, local web UI, and a first-party MCP server"
+readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.10"
+keywords = ["crm", "json", "git", "mcp", "ai-agents", "llm", "cli", "pipeline", "sales", "open-source"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://www.jsoncrm.dev"
+Repository = "https://github.com/pauling-ai/jsoncrm"
+Issues = "https://github.com/pauling-ai/jsoncrm/issues"
+Changelog = "https://github.com/pauling-ai/jsoncrm/commits/main"
 
 [project.scripts]
 jsoncrm = "jsoncrm.tool:main"

@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs Hermit CRM — which git-native CRM for AI agents?</title>
+  <meta name="description" content="JSONCRM and Hermit CRM make the same bet: a CRM is files in git plus an MCP server for agents. The difference is JSON-as-state vs Markdown-as-prose. An honest Hermit CRM alternative comparison to pick yours.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/hermit-crm">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs Hermit CRM — which git-native CRM for AI agents?">
+  <meta property="og:description" content="Same bet (files + git + agents), different substrate (JSON vs Markdown). An honest, fair comparison.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/hermit-crm">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs Hermit CRM</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> these are two small, independent projects making the same
+      bet — <em>a CRM is plain files in a git repo, with a local web UI and an MCP server for AI agents</em> —
+      with different substrates. <strong>Hermit CRM</strong> stores Markdown; <strong>JSONCRM</strong> stores JSON.
+      If your CRM is mostly <em>notes about conversations</em>, Hermit fits. If it's <em>structured records
+      agents compute over</em> — scores, stages, bulk updates — JSONCRM fits. Looking for a Hermit CRM
+      alternative on the structured side of that line? That's exactly the gap JSONCRM fills.</p>
+    </div>
+
+    <div class="prose">
+      <p>
+        Two projects arriving at "git + plain text + MCP = CRM" within the same few months is a signal,
+        not a coincidence: a micro-category is forming. We think of Hermit as an ally in it, not a rival —
+        the real competition is the spreadsheet and the seat-priced SaaS CRM. That said, here's an honest
+        breakdown of where the two differ.
+      </p>
+
+      <h2>The core difference: JSON-as-state vs Markdown-as-prose</h2>
+      <p>
+        Hermit's pitch is "your CRM is a folder of Markdown files in git" — human-writable, human-readable
+        notes about companies, contacts, and conversations. JSONCRM's pitch is that the CRM state itself is
+        structured data: a flat JSON object per record, an array per stage, a config that defines stages,
+        transitions, identity, and score values.
+      </p>
+      <p>
+        This plays out in what <em>agents</em> can do reliably. Structured records can be scored, filtered,
+        diffed field-by-field, promoted along enforced transitions, and validated. Prose records are
+        wonderful to read and awkward to compute over. The reverse is also true: writing notes as JSON is
+        misery for a human. Pick based on which kind of work your pipeline is made of.
+      </p>
+
+      <h2>Feature-by-feature</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Hermit CRM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Record format</td>
+            <td class="col-us">JSON objects, one array per stage</td>
+            <td>Markdown files (companies, contacts, conversations)</td>
+          </tr>
+          <tr>
+            <td>AI agent access</td>
+            <td class="col-us">CLI + first-party MCP server; every write supports <code>dry_run</code></td>
+            <td>MCP server (10 read / 7 write tools), works with Claude Desktop, ChatGPT, Cursor</td>
+          </tr>
+          <tr>
+            <td>Pipeline enforcement</td>
+            <td class="col-us">Stages + legal transitions defined in config; <code>promote</code>/<code>demote</code> only move along them</td>
+            <td>Customizable pipeline stages</td>
+          </tr>
+          <tr>
+            <td>Write safety</td>
+            <td class="col-us">Dry-run / <code>--apply</code> previews on every write command; atomic file writes</td>
+            <td>Undo support, one commit per write</td>
+          </tr>
+          <tr>
+            <td>Data hygiene</td>
+            <td class="col-us"><code>validate</code>, <code>deduplicate</code>, <code>filter-competitors</code>, <code>merge</code>, blocklist</td>
+            <td>Data hygiene reports</td>
+          </tr>
+          <tr>
+            <td>Reports</td>
+            <td class="col-us"><code>stats</code> (per-stage, scored/contacted, paid/unpaid)</td>
+            <td>Weekly activity, funnel/conversion, time-in-stage, message outcomes</td>
+          </tr>
+          <tr>
+            <td>Capture</td>
+            <td class="col-us">LinkedIn likers → intake pipeline (<code>parse-from-linkedin-mcp</code>, <code>intake</code>, <code>merge</code>)</td>
+            <td>Bookmarklet for any web page; BCC/IMAP email import; CSV/TSV/xlsx import</td>
+          </tr>
+          <tr>
+            <td>Backups</td>
+            <td class="col-us">Out-of-git atomic ZIP snapshots (<code>jsoncrm backup</code>)</td>
+            <td>Git history</td>
+          </tr>
+          <tr>
+            <td>Collaboration</td>
+            <td class="col-us">Git PRs, incl. "Open PR" button from the web UI via GitHub token</td>
+            <td>Git (local-first, built for one person)</td>
+          </tr>
+          <tr>
+            <td>Web UI</td>
+            <td class="col-us">Local, <code>jsoncrm serve</code> on :7341</td>
+            <td>Local web app on :8765</td>
+          </tr>
+          <tr>
+            <td>License</td>
+            <td class="col-us">AGPL-3.0 (commercial licensing available)</td>
+            <td>Apache-2.0 (code)</td>
+          </tr>
+          <tr>
+            <td>Install</td>
+            <td class="col-us"><code>pip install</code> from GitHub (PyPI coming)</td>
+            <td><code>uv tool install hermitcrm</code> (on PyPI)</td>
+          </tr>
+          <tr>
+            <td>Maturity</td>
+            <td class="col-us">1.0, dogfooded daily</td>
+            <td>Alpha, macOS-first</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🧭 Choose Hermit CRM if…</h3>
+        <ul>
+          <li>Your CRM is mostly <strong>prose</strong> — notes, conversation histories, relationship context</li>
+          <li>Email is your main capture channel (BCC/IMAP import is genuinely clever)</li>
+          <li>You want a bookmarklet to grab pages as you browse</li>
+          <li>You're a solopreneur on macOS who wants follow-up radar and meeting briefs</li>
+          <li>You prefer Apache-2.0 licensing</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li>Your pipeline is <strong>structured records</strong> — scoring, staged progression, bulk updates</li>
+          <li>Agents should <strong>compute over the data</strong>: filter by score, promote in bulk, enrich fields</li>
+          <li>You want enforced stage transitions and validation, not convention</li>
+          <li>You want dry-run previews before any agent write lands</li>
+          <li>GitHub PR review of CRM changes fits your team's workflow</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>A note on fairness</h2>
+      <p>
+        Hermit got several things first that we respect: the bookmarklet, email import, and funnel reports
+        are all ahead of JSONCRM's equivalents (some are on our roadmap — see the
+        <a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">repo</a>). Hermit is also
+        upfront about being alpha software, which is the right way to ship a small project. If this comparison
+        is out of date, that's on us — PRs welcome.
+      </p>
+      <p>
+        Or skip the choosing: both are free, both are a <code>pip install</code>, and both keep your data in
+        files you own. Trying each for a week costs nothing but time.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Git-native CRM — common questions</h2>
+    </div>
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>What is a git-native CRM?</summary>
+        <div class="faq-body">
+          <p>A CRM where the system of record is plain files inside a git repository — every change is a diff, every state is a commit, and collaboration happens through branches and pull requests. JSONCRM (JSON files) and Hermit CRM (Markdown files) are both git-native, local-first CRMs; both also ship an MCP server so AI agents can operate the pipeline directly.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is there a CRM that works with Claude, Cursor, or other MCP clients?</summary>
+        <div class="faq-body">
+          <p>Yes — both projects here ship first-party MCP servers over stdio. JSONCRM exposes every CLI command as an MCP tool (search, add, update, promote, validate, and so on) with <code>dry_run</code> support, so an agent can preview writes before applying them. Configure it in Claude Desktop, Claude Code, Cursor, or any MCP-capable client.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Markdown or JSON for an AI-agent CRM?</summary>
+        <div class="faq-body">
+          <p>Markdown wins for human-written prose — notes, conversation histories, context. JSON wins for machine-computed state — scoring, stage transitions, bulk updates, validation — because structure means agents can't misread intent. If your pipeline is mostly the former, Hermit CRM is the better fit; mostly the latter, JSONCRM.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is a git-native CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "A CRM where the system of record is plain files in a git repository: every change is a diff, every state is a commit, collaboration happens via branches and pull requests. JSONCRM (JSON) and Hermit CRM (Markdown) are both git-native and both ship MCP servers for AI agents." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is there a CRM that works with Claude or MCP clients?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. JSONCRM ships a first-party MCP server exposing every CLI command as a tool, with dry_run support so agents preview writes before applying. It works with Claude Desktop, Claude Code, Cursor, and any stdio MCP client. Hermit CRM also ships an MCP server." }
+        },
+        {
+          "@type": "Question",
+          "name": "Markdown or JSON for an AI-agent CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Markdown suits human-written prose like notes and conversation histories. JSON suits machine-computed state — scores, stage transitions, bulk updates, validation — because structure removes ambiguity for agents." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>Structured pipeline? Run it on JSON.</h2>
+      <p>Free, open source, your repo. Agents welcome.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://github.com/Hermit-CRM/hermit-crm" target="_blank" rel="noopener">Hermit CRM on GitHub</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="spreadsheets.html">vs spreadsheets</a></li>
+          <li><a href="../#compare">All comparisons</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

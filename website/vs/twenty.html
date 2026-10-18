@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs Twenty — open-source CRM: files vs platform</title>
+  <meta name="description" content="Twenty is the open-source Salesforce alternative: a full CRM platform with Postgres, GraphQL, and Docker. JSONCRM is a lightweight Twenty alternative — no platform, just git-tracked JSON files, a CLI, and an MCP server for AI agents. Which fits you?">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/twenty">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs Twenty — open-source CRM: files vs platform">
+  <meta property="og:description" content="A full CRM platform (Postgres, GraphQL, Docker, hosted tiers) vs a pip package with JSON files in git. An honest comparison.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/twenty">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs Twenty</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> Twenty is a full CRM <em>platform</em> — Postgres, GraphQL,
+      Docker, dashboards, permissions — and an excellent open alternative to Salesforce for teams.
+      JSONCRM is the opposite bet: <em>no platform at all</em>, just git-tracked JSON files and tools.
+      <strong>Need a team CRM system? Twenty. Running a pipeline with agents and want zero infra?
+      JSONCRM — the lightweight Twenty alternative.</strong> They're AGPL twins with completely different centerlines.</p>
+    </div>
+
+    <div class="prose">
+      <p>
+        Credit where due: Twenty is one of the great open-source business-software stories — tens of
+        thousands of GitHub stars, YC-backed, genuinely competing with Salesforce on features. If you
+        evaluate both, you're choosing between two honest open-source projects with opposite instincts
+        about where the complexity should live.
+      </p>
+
+      <h2>Platform vs files</h2>
+      <p>
+        Twenty self-hosts as a stack: containers, a Postgres database, a GraphQL/REST API, a full web
+        application. That's what it takes to replace Salesforce — custom objects, row-level permissions,
+        SSO, dashboards, 30+ languages. The managed cloud starts at $9/user/month (Pro) and
+        $19/user/month (Organization), with Enterprise from ~$50k/yr, and even paid tiers rate-limit API
+        calls (50–100 req/min).
+      </p>
+      <p>
+        JSONCRM is a pip package with no database, no containers, and no server process other than an
+        optional local UI. The "API" is the filesystem — unlimited rate limit, and your query planner is
+        <code>grep</code>. Collaboration is git: branches, diffs, pull requests. There is no hosted tier,
+        because there's nothing to host — your repo <em>is</em> the instance.
+      </p>
+
+      <h2>Two different AI-agent stories</h2>
+      <p>
+        Both projects take agents seriously. Twenty exposes REST/GraphQL APIs and a native MCP server, so
+        agents operate against a running service. JSONCRM gives agents the files themselves plus a
+        CLI/MMP surface with dry-run previews — closer to how an agent works on a codebase: read state,
+        propose a diff, apply on approval. One is an API to a system; the other is a working tree. For a
+        developer-led pipeline, the working tree is a surprisingly good shape.
+      </p>
+
+      <h2>Side by side</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Twenty</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>What it is</td>
+            <td class="col-us">CLI + local web UI over JSON files in git</td>
+            <td>Full CRM platform (web app, API, database)</td>
+          </tr>
+          <tr>
+            <td>Self-host footprint</td>
+            <td class="col-us"><code>pip install</code> — no DB, no containers</td>
+            <td>Docker Compose + Postgres + services</td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td class="col-us">Free (AGPL-3.0); commercial licenses available</td>
+            <td>Free self-host core · cloud $9–19/user/mo · Enterprise ~$50k+/yr</td>
+          </tr>
+          <tr>
+            <td>Data model</td>
+            <td class="col-us">Flat JSON objects; schema defined by <code>.crm.json</code></td>
+            <td>Custom objects, fields, relations — full GUI builder</td>
+          </tr>
+          <tr>
+            <td>Team features</td>
+            <td class="col-us">Git (branches, PRs; "Open PR" button in the UI)</td>
+            <td>Roles, row-level permissions, SSO/SAML, audit logs (paid tiers)</td>
+          </tr>
+          <tr>
+            <td>Agent access</td>
+            <td class="col-us">Files + CLI + MCP, dry-run previews, no rate limits</td>
+            <td>REST/GraphQL (rate-limited by tier) + MCP server; official agent skills</td>
+          </tr>
+          <tr>
+            <td>Reporting</td>
+            <td class="col-us">Pipeline stats in the CLI/UI; roll your own from JSON</td>
+            <td>Dashboards, views (table/kanban/calendar), workflows</td>
+          </tr>
+          <tr>
+            <td>Backups</td>
+            <td class="col-us">Git + out-of-git ZIP snapshots</td>
+            <td>Database backups</td>
+          </tr>
+          <tr>
+            <td>Scale story</td>
+            <td class="col-us">Solo / small dev-led teams; thousands of records per file</td>
+            <td>Departments and companies</td>
+          </tr>
+          <tr>
+            <td>License</td>
+            <td class="col-us">AGPL-3.0</td>
+            <td>AGPL-3.0 (core)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Twenty pricing as of Oct 2026 — check <a href="https://twenty.com/pricing" target="_blank" rel="noopener">twenty.com/pricing</a> for current numbers.</p>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🏢 Choose Twenty if…</h3>
+        <ul>
+          <li>You need a <strong>team CRM</strong> with roles, permissions, and SSO</li>
+          <li>Non-technical sellers live in the UI all day — kanban, dashboards, workflows</li>
+          <li>You want custom objects and relations without writing code</li>
+          <li>You have ops capacity to run Docker + Postgres (or pay for the cloud)</li>
+          <li>You're genuinely replacing Salesforce/HubSpot at a company</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li>You're a <strong>developer-led or solo pipeline</strong> (outbound, fundraising, bizdev)</li>
+          <li>You want <strong>zero infra</strong> — a pip install and a git repo is the whole deployment</li>
+          <li>AI agents are the primary operators; humans review diffs and PRs</li>
+          <li>You want every CRM change to be a reviewable, revertable commit</li>
+          <li>You'd rather script the CRM than configure it</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>Can you use both?</h2>
+      <p>
+        Yes, and it's not crazy: some teams run JSONCRM as the agent-facing working layer (intake, scoring,
+        outbound tracking) and sync summaries into a platform CRM for the sales team. Because JSONCRM's data
+        is just JSON, exporting into anything is a script, not a project. There's no official bridge yet —
+        if you build one, PRs welcome.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Twenty alternative — common questions</h2>
+    </div>
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Is Twenty CRM free?</summary>
+        <div class="faq-body">
+          <p>The open-source core is free to self-host (AGPL-3.0), but self-hosting means running Docker Compose with Postgres and services. Twenty's managed cloud runs $9/user/month (Pro) to $19/user/month (Organization), with Enterprise from ~$50k/year. JSONCRM has no paid tier at all — it's a pip package over files in your git repo.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What's the best open-source CRM for AI agents?</summary>
+        <div class="faq-body">
+          <p>It depends on shape. Twenty suits teams that want a full CRM platform with an API and MCP server in front of a database. JSONCRM is built agent-first: the CRM <em>is</em> structured JSON, so LLMs read and write it natively, with a CLI and a first-party MCP server on top and dry-run previews on every write. (Hermit CRM covers the Markdown-notes corner of the same space.)</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can I self-host a CRM without Docker or a database?</summary>
+        <div class="faq-body">
+          <p>That's JSONCRM's whole pitch: <code>pip install</code>, three JSON files, a <code>.crm.json</code> config, and <code>git init</code>. No containers, no Postgres, no services to babysit — the local web UI and MCP server are optional extras in the same package.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is Twenty CRM free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The open-source core is free to self-host (AGPL-3.0), but requires Docker Compose, Postgres, and services. Twenty's cloud costs $9/user/month (Pro) to $19/user/month (Organization); Enterprise is ~$50k+/year. JSONCRM has no paid tier — it is a pip package over JSON files in git." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is the best open-source CRM for AI agents?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Twenty suits teams wanting a full CRM platform with an API and MCP server over a database. JSONCRM is agent-first: the CRM is structured JSON that LLMs read and write natively, plus a CLI, a first-party MCP server, and dry-run previews on writes." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I self-host a CRM without Docker or a database?",
+          "acceptedAnswer": { "@type": "Answer", "text": "JSONCRM is designed for exactly that: pip install, three JSON files, a .crm.json config, and git init. No containers, no Postgres, no services." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>No platform. Just files.</h2>
+      <p>pip install, git init, pipeline running — before the Docker pull would finish.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://twenty.com" target="_blank" rel="noopener">Twenty CRM</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="spreadsheets.html">vs spreadsheets</a></li>
+          <li><a href="../#compare">All comparisons</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

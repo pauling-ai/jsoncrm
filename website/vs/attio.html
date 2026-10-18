@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs Attio — the free, open, file-based alternative</title>
+  <meta name="description" content="Attio is an excellent funded SaaS CRM with per-seat pricing and AI credits. JSONCRM is the open, free counterfactual: git-tracked JSON files, unmetered agents, no lock-in. Honest comparison.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/attio">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs Attio — the free, open, file-based alternative">
+  <meta property="og:description" content="Seats and credits vs a git repo. An honest comparison of where each wins.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/attio">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs Attio</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> Attio is a genuinely good, well-funded SaaS CRM — flexible data
+      model, polished UI, real email/calendar sync and enrichment. You pay for it per seat, and since 2026
+      also per AI credit. <strong>JSONCRM is the opposite trade:</strong> no cloud, no seats, no credits —
+      your pipeline is JSON files in a git repo, and your agents are unmetered because they run on your own
+      tools. <strong>Want a hosted product for a sales team? Attio. Want a free, open-source Attio
+      alternative you own outright, agent-first? JSONCRM.</strong></p>
+    </div>
+
+    <div class="prose">
+      <p>
+        Attio sits at the head of the "AI-native CRM" wave — the category you've probably seen advertised.
+        It earned that position: the data model is unusually flexible, the interface is fast, and for a
+        team that wants a managed product with email sync, enrichment, and dashboards out of the box, it's
+        a reasonable buy. This comparison isn't "Attio bad" — it's two different answers to "who owns the
+        system of record, and what does an agent cost to run against it?"
+      </p>
+
+      <h2>Seats and credits vs a git repo</h2>
+      <p>
+        After its July 2026 repricing, Attio's paid plans run <strong>$35/seat/month</strong> (Plus, annual)
+        and <strong>$79/seat/month</strong> (Pro), with Enterprise quoted custom — and "Ask Attio" plus
+        data enrichment now draw from <strong>two refilling credit pools</strong> (a per-seat allowance and
+        a per-workspace pool), with paid top-ups beyond them. Multiple 2026 buyer guides flag the same
+        friction: the sticker price understates real spend, and budgeting the credit system is hard.
+      </p>
+      <p>
+        JSONCRM's pricing model is a file system. Unlimited records, unlimited "seats" (whoever
+        collaborates on your repo), unlimited agent calls — the meter that exists is your own LLM bill,
+        which you'd pay anyway. If a five-person team on Attio Pro spends ~$4,700/year before credits,
+        the equivalent line item here is $0.
+      </p>
+
+      <h2>The agent story: credits vs files</h2>
+      <p>
+        Attio's AI ("Ask Attio", automated enrichment) is good — and metered. JSONCRM's agent access is
+        structural: the CRM is JSON, so any LLM reads and writes it natively, with a CLI and a first-party
+        MCP server on top, and <code>--dry-run</code> previews on every write. You bring the intelligence
+        (Claude, Cursor, your own stack); the CRM brings the substrate. No per-question economics, no
+        vendor deciding which model you use.
+      </p>
+
+      <h2>Ownership and exit</h2>
+      <p>
+        Attio's export gives you your data; JSONCRM <em>is</em> your data. There's no account to close and
+        nothing to export — the day you stop using the tool, you still have a perfectly usable git repo of
+        structured pipeline history. The flip side is honest: Attio gives you a hosted, backed-up,
+        multi-user product with granular permissions today, and JSONCRM gives you files, git, and a local
+        web UI. Teams that need the former should buy it.
+      </p>
+
+      <h2>Side by side</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Attio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Price</td>
+            <td class="col-us"><span class="tick">Free, AGPL-3.0</span></td>
+            <td>Free (3 seats) · $35–79/seat/mo + AI credit top-ups</td>
+          </tr>
+          <tr>
+            <td>Data lives in</td>
+            <td class="col-us">JSON files in your git repo</td>
+            <td>Attio's cloud</td>
+          </tr>
+          <tr>
+            <td>Export / exit</td>
+            <td class="col-us">Nothing to export — you own the files</td>
+            <td>Vendor export</td>
+          </tr>
+          <tr>
+            <td>AI agent usage</td>
+            <td class="col-us">Unmetered — CLI + MCP + dry-run; you pick the model</td>
+            <td>"Ask Attio" + enrichment, drawn from credit pools</td>
+          </tr>
+          <tr>
+            <td>Email / calendar sync</td>
+            <td class="col-us">Not built in — agents/scripts read files, PRs land changes</td>
+            <td>Built in, polished</td>
+          </tr>
+          <tr>
+            <td>Data model</td>
+            <td class="col-us">Flat records defined by you + <code>.crm.json</code></td>
+            <td>Flexible custom objects, relations, GUI builder</td>
+          </tr>
+          <tr>
+            <td>Team collaboration</td>
+            <td class="col-us">Git — branches, diffs, pull requests</td>
+            <td>Workspaces, roles, shared views</td>
+          </tr>
+          <tr>
+            <td>Infra to run</td>
+            <td class="col-us">pip install</td>
+            <td>None (SaaS)</td>
+          </tr>
+          <tr>
+            <td>Best for</td>
+            <td class="col-us">Dev-led / agent-first pipelines</td>
+            <td>Sales teams wanting a managed product</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Attio pricing as of Oct 2026 — see <a href="https://attio.com/pricing" target="_blank" rel="noopener">attio.com/pricing</a> for current numbers.</p>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🏢 Choose Attio if…</h3>
+        <ul>
+          <li>You want a <strong>hosted product</strong> with support, backups, and uptime you don't think about</li>
+          <li>Non-technical sellers need polished email/calendar sync and enrichment today</li>
+          <li>You need custom objects and permissions for a real sales org</li>
+          <li>Per-seat budget is approved and credit-based AI is acceptable</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li>$0 spend matters, or procurement doesn't want another SaaS contract</li>
+          <li>Your pipeline should live <strong>next to your code</strong>, reviewable in git</li>
+          <li>AI agents are the primary operators — unmetered, model-agnostic</li>
+          <li>You want an open (AGPL) system with a commercial-licensing path</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>A fair closing note</h2>
+      <p>
+        These tools rarely compete for the same buyer. Attio is built for sales teams that want to buy a
+        working product; JSONCRM is built for people who'd rather run their pipeline the way they run their
+        codebase. If you're an Attio customer curious about the file-based extreme, the
+        <a href="../#quickstart">quickstart</a> takes about a minute and won't touch your Attio workspace.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Attio alternative — common questions</h2>
+    </div>
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Is there a free alternative to Attio?</summary>
+        <div class="faq-body">
+          <p>Yes — JSONCRM is a free, open-source Attio alternative (AGPL-3.0) with no seats and no credits. Attio's own free tier covers 3 seats with monthly AI-credit allowances; beyond that you're on per-seat pricing. JSONCRM's cost model is your existing infra: a git repo and the LLM you already pay for.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is JSONCRM a good Attio alternative for small teams?</summary>
+        <div class="faq-body">
+          <p>For developer-led and agent-first teams, yes — especially if you want the pipeline reviewable in git and your AI agents working through a first-party MCP server or the CLI. If your team needs hosted email/calendar sync, enrichment, and permissions for non-technical sellers today, a hosted SaaS CRM like Attio is the more honest answer.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I move my data out of Attio (or in)?</summary>
+        <div class="faq-body">
+          <p>Attio provides data export. Because JSONCRM records are flat JSON objects, migrating is mostly mapping your exported columns to fields, dropping them into <code>leads.json</code>, and running <code>jsoncrm validate</code>. Moving away from JSONCRM is even easier — there's nothing to export; you already own the files.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is there a free alternative to Attio?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes — JSONCRM is a free, open-source Attio alternative (AGPL-3.0) with no seats and no credits. Attio's free tier covers 3 seats with monthly AI-credit allowances; beyond that it is per-seat pricing." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is JSONCRM a good Attio alternative for small teams?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For developer-led and agent-first teams, yes — the pipeline lives in git and agents work through a first-party MCP server or the CLI. Teams needing hosted email sync, enrichment, and permissions for non-technical sellers may prefer a hosted SaaS CRM." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I move my data out of Attio?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Export from Attio, map columns to fields in flat JSON records, drop them into leads.json, and run jsoncrm validate. Leaving JSONCRM needs no export at all — the data is already files you own." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>The anti-metering CRM.</h2>
+      <p>Your repo, your agents, your models. Zero credits.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">GitHub repository</a></li>
+          <li><a href="https://attio.com" target="_blank" rel="noopener">Attio</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md" target="_blank" rel="noopener">README / docs</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="spreadsheets.html">vs spreadsheets</a></li>
+          <li><a href="../#compare">All comparisons</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li>Commercial licensing available</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
