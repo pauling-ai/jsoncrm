@@ -855,6 +855,163 @@ def test_cmd_demote_missing_record(tmp_path):
     assert exc.value.code == 1
 
 
+# --- dry-run / apply ---
+
+def test_cmd_add_dry_run_then_apply(tmp_path, capsys):
+    db = tmp_path / "leads.json"
+    db.write_text("[]\n")
+    original = db.read_bytes()
+    output = tmp_path / "added.json"
+    args = make_args(
+        database_file=str(db),
+        item_file=None,
+        item_json='{"name":"Alice","linkedin_url":"https://linkedin.com/in/dry-run-add"}',
+        output_file=str(output),
+        dry_run=True,
+        apply=False,
+    )
+    tool.cmd_add(args)
+    preview = json.loads(capsys.readouterr().out)
+    assert preview["dry_run"] is True
+    assert preview["record"]["name"] == "Alice"
+    assert db.read_bytes() == original
+    assert not output.exists()
+
+    args.dry_run = False
+    args.apply = True
+    tool.cmd_add(args)
+    assert len(json.loads(db.read_text())) == 1
+    assert output.exists()
+
+
+def test_cmd_update_dry_run_then_apply(tmp_path, capsys):
+    db = tmp_path / "leads.json"
+    db.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice", "company": "Old"}]))
+    original = db.read_bytes()
+    output = tmp_path / "updated.json"
+    args = make_args(
+        database_file=str(db),
+        item_file=None,
+        item_json='{"linkedin_url":"https://linkedin.com/in/alice","company":"New"}',
+        output_file=str(output),
+        dry_run=True,
+        apply=False,
+    )
+    tool.cmd_update(args)
+    preview = json.loads(capsys.readouterr().out)
+    assert preview["dry_run"] is True
+    assert preview["record"]["company"] == "New"
+    assert db.read_bytes() == original
+    assert not output.exists()
+
+    args.dry_run = False
+    args.apply = True
+    tool.cmd_update(args)
+    assert json.loads(db.read_text())[0]["company"] == "New"
+    assert output.exists()
+
+
+def test_cmd_delete_dry_run_then_apply(tmp_path, capsys):
+    db = tmp_path / "leads.json"
+    db.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
+    original = db.read_bytes()
+    output = tmp_path / "deleted.json"
+    args = make_args(
+        database_file=str(db),
+        item_file=None,
+        item_json='{"linkedin_url":"https://linkedin.com/in/alice"}',
+        output_file=str(output),
+        dry_run=True,
+        apply=False,
+    )
+    tool.cmd_delete(args)
+    preview = json.loads(capsys.readouterr().out)
+    assert preview["dry_run"] is True
+    assert preview["record"]["name"] == "Alice"
+    assert db.read_bytes() == original
+    assert not output.exists()
+
+    args.dry_run = False
+    args.apply = True
+    tool.cmd_delete(args)
+    assert json.loads(db.read_text()) == []
+    assert output.exists()
+
+
+def test_cmd_promote_dry_run_then_apply(tmp_path, capsys):
+    leads = tmp_path / "leads.json"
+    leads.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text("[]\n")
+    original_leads = leads.read_bytes()
+    original_prospects = prospects.read_bytes()
+    args = make_args(
+        identity_value="https://linkedin.com/in/alice",
+        identity_field="linkedin_url",
+        lead=True,
+        prospect=False,
+        from_file=str(leads),
+        to_file=str(prospects),
+        dry_run=True,
+        apply=False,
+    )
+    tool._set_json_mode(True)
+    try:
+        tool.cmd_promote(args)
+        preview = json.loads(capsys.readouterr().out)
+        assert preview["action"] == "promote"
+        assert preview["dry_run"] is True
+        assert preview["from"] == "leads.json"
+        assert preview["to"] == "prospects.json"
+        assert leads.read_bytes() == original_leads
+        assert prospects.read_bytes() == original_prospects
+
+        args.dry_run = False
+        args.apply = True
+        tool.cmd_promote(args)
+    finally:
+        tool._set_json_mode(False)
+    assert json.loads(leads.read_text()) == []
+    assert len(json.loads(prospects.read_text())) == 1
+
+
+def test_cmd_demote_dry_run_then_apply(tmp_path, capsys):
+    prospects = tmp_path / "prospects.json"
+    prospects.write_text(json.dumps([{"name": "Alice", "linkedin_url": "https://linkedin.com/in/alice"}]))
+    leads = tmp_path / "leads.json"
+    leads.write_text("[]\n")
+    original_prospects = prospects.read_bytes()
+    original_leads = leads.read_bytes()
+    args = make_args(
+        identity_value="https://linkedin.com/in/alice",
+        identity_field="linkedin_url",
+        customer=False,
+        prospect=True,
+        from_file=str(prospects),
+        to_file=str(leads),
+        dry_run=True,
+        apply=False,
+    )
+    tool._set_json_mode(True)
+    try:
+        tool.cmd_demote(args)
+        preview = json.loads(capsys.readouterr().out)
+        assert preview["action"] == "demote"
+        assert preview["dry_run"] is True
+        assert preview["from"] == "prospects.json"
+        assert preview["to"] == "leads.json"
+        assert prospects.read_bytes() == original_prospects
+        assert leads.read_bytes() == original_leads
+
+        args.dry_run = False
+        args.apply = True
+        tool.cmd_demote(args)
+    finally:
+        tool._set_json_mode(False)
+    assert json.loads(prospects.read_text()) == []
+    assert len(json.loads(leads.read_text())) == 1
+
+
 # --- cmd_list ---
 
 def test_cmd_list_basic(patched_pipeline, capsys):

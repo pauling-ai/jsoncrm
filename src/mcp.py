@@ -130,11 +130,13 @@ def create_server(config_path=None):
         item_file: str | None = None,
         item_json: dict | str | None = None,
         output_file: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
     ):
         """Add one record to a CRM JSON file."""
         return _run_command(
             "add", config_path, database_file=database_file, item_file=item_file,
-            item_json=item_json, output_file=output_file,
+            item_json=item_json, output_file=output_file, dry_run=dry_run, apply=apply,
         )
 
     @server.tool()
@@ -143,11 +145,13 @@ def create_server(config_path=None):
         item_file: str | None = None,
         item_json: dict | str | None = None,
         output_file: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
     ):
         """Update one record identified by id or linkedin_url."""
         return _run_command(
             "update", config_path, database_file=database_file, item_file=item_file,
-            item_json=item_json, output_file=output_file,
+            item_json=item_json, output_file=output_file, dry_run=dry_run, apply=apply,
         )
 
     @server.tool()
@@ -156,11 +160,13 @@ def create_server(config_path=None):
         item_file: str | None = None,
         item_json: dict | str | None = None,
         output_file: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
     ):
         """Delete one record identified by id or linkedin_url."""
         return _run_command(
             "delete", config_path, database_file=database_file, item_file=item_file,
-            item_json=item_json, output_file=output_file,
+            item_json=item_json, output_file=output_file, dry_run=dry_run, apply=apply,
         )
 
     @server.tool()
@@ -231,11 +237,14 @@ def create_server(config_path=None):
         prospect: bool = False,
         from_file: str | None = None,
         to_file: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
     ):
         """Move a lead or prospect to the next configured pipeline stage."""
         return _run_command(
             "promote", config_path, identity_value=identity_value, identity_field=identity_field,
             lead=lead, prospect=prospect, from_file=from_file, to_file=to_file,
+            dry_run=dry_run, apply=apply,
         )
 
     @server.tool()
@@ -284,11 +293,14 @@ def create_server(config_path=None):
         prospect: bool = False,
         from_file: str | None = None,
         to_file: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
     ):
         """Move a prospect or customer back one pipeline stage."""
         return _run_command(
             "demote", config_path, identity_value=identity_value, identity_field=identity_field,
             customer=customer, prospect=prospect, from_file=from_file, to_file=to_file,
+            dry_run=dry_run, apply=apply,
         )
 
     @server.tool(name="list")

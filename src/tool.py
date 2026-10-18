@@ -172,6 +172,15 @@ def cmd_find(args):
         print(output)
 
 
+def _output_record_result(args, record, dry_run):
+    result = {"dry_run": True, "record": record} if dry_run else record
+    output = json.dumps(result, indent=2, ensure_ascii=False)
+    if args.output_file and not dry_run:
+        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
+    else:
+        print(output)
+
+
 def cmd_add(args):
     database_path = Path(args.database_file)
     item = _load_item_dict(args, "add")
@@ -185,13 +194,10 @@ def cmd_add(args):
         sys.exit(1)
 
     records.append(item)
-    atomic_write_json(database_path, records)
-
-    output = json.dumps(item, indent=2, ensure_ascii=False)
-    if args.output_file:
-        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
-    else:
-        print(output)
+    dry_run = getattr(args, "dry_run", False)
+    if not dry_run:
+        atomic_write_json(database_path, records)
+    _output_record_result(args, item, dry_run)
 
 
 def cmd_delete(args):
@@ -220,13 +226,10 @@ def cmd_delete(args):
         print(f"Error: no record found for {identity_field} '{identity_value}'")
         sys.exit(1)
 
-    atomic_write_json(database_path, kept)
-
-    output = json.dumps(deleted, indent=2, ensure_ascii=False)
-    if args.output_file:
-        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
-    else:
-        print(output)
+    dry_run = getattr(args, "dry_run", False)
+    if not dry_run:
+        atomic_write_json(database_path, kept)
+    _output_record_result(args, deleted, dry_run)
 
 
 def cmd_update(args):
@@ -257,13 +260,10 @@ def cmd_update(args):
         print(f"Error: no record found for {identity_field} '{identity_value}'")
         sys.exit(1)
 
-    atomic_write_json(database_path, records)
-
-    output = json.dumps(updated, indent=2, ensure_ascii=False)
-    if args.output_file:
-        Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
-    else:
-        print(output)
+    dry_run = getattr(args, "dry_run", False)
+    if not dry_run:
+        atomic_write_json(database_path, records)
+    _output_record_result(args, updated, dry_run)
 
 
 def cmd_apply_update(args):
@@ -695,10 +695,20 @@ def cmd_promote(args):
         sys.exit(1)
 
     dst_data.append(record)
-    atomic_write_json(src_path, remaining)
-    atomic_write_json(dst_path, dst_data)
+    dry_run = getattr(args, "dry_run", False)
+    if not dry_run:
+        atomic_write_json(src_path, remaining)
+        atomic_write_json(dst_path, dst_data)
 
     name = record.get("name", identity_value)
+    if dry_run:
+        if _jout({
+            "action": "promote", "dry_run": True, "record": record,
+            "from": src_path.name, "to": dst_path.name,
+        }):
+            return
+        print(f"Dry run: would promote {name}  {src_path.name} → {dst_path.name}")
+        return
     if _jout({"action": "promoted", "record": record, "from": src_path.name, "to": dst_path.name}):
         return
     print(f"Promoted: {name}  {src_path.name} → {dst_path.name}")
@@ -981,10 +991,20 @@ def cmd_demote(args):
         sys.exit(1)
 
     dst_data.append(record)
-    atomic_write_json(src_path, remaining)
-    atomic_write_json(dst_path, dst_data)
+    dry_run = getattr(args, "dry_run", False)
+    if not dry_run:
+        atomic_write_json(src_path, remaining)
+        atomic_write_json(dst_path, dst_data)
 
     name = record.get("name", identity_value)
+    if dry_run:
+        if _jout({
+            "action": "demote", "dry_run": True, "record": record,
+            "from": src_path.name, "to": dst_path.name,
+        }):
+            return
+        print(f"Dry run: would demote {name}  {src_path.name} → {dst_path.name}")
+        return
     if _jout({"action": "demoted", "record": record, "from": src_path.name, "to": dst_path.name}):
         return
     print(f"Demoted: {name}  {src_path.name} → {dst_path.name}")
@@ -1097,6 +1117,9 @@ def build_parser():
     p_add.add_argument("--item_file", default=None, help="Path to JSON object to add")
     p_add.add_argument("--item_json", default=None, help="JSON object to add")
     p_add.add_argument("--output_file", default=None, help="Optional file for written record")
+    write_mode = p_add.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
 
     # update
     p_update = subparsers.add_parser("update", parents=[parent], help="Update one record in a specific CRM JSON file.")
@@ -1104,6 +1127,9 @@ def build_parser():
     p_update.add_argument("--item_file", default=None, help="Path to JSON object containing identity and fields")
     p_update.add_argument("--item_json", default=None, help="JSON object containing identity and fields")
     p_update.add_argument("--output_file", default=None, help="Optional file for updated record")
+    write_mode = p_update.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
 
     # delete
     p_delete = subparsers.add_parser("delete", parents=[parent], help="Delete one record from a specific CRM JSON file.")
@@ -1111,6 +1137,9 @@ def build_parser():
     p_delete.add_argument("--item_file", default=None, help="Path to JSON object containing id or linkedin_url")
     p_delete.add_argument("--item_json", default=None, help="JSON object containing id or linkedin_url")
     p_delete.add_argument("--output_file", default=None, help="Optional file for deleted record")
+    write_mode = p_delete.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
 
     # apply_update
     p_apply_update = subparsers.add_parser("apply_update", parents=[parent], help="Apply updates from a pending file.")
@@ -1199,6 +1228,9 @@ def build_parser():
                            help="Override source file (for testing)")
     p_promote.add_argument("--to-file", default=None,
                            help="Override destination file (for testing)")
+    write_mode = p_promote.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
 
     # stats
     p_stats = subparsers.add_parser("stats", parents=[parent], help="Show pipeline statistics.")
@@ -1231,6 +1263,9 @@ def build_parser():
     stage.add_argument("--prospect", action="store_true", help="Demote from prospects to leads")
     p_demote.add_argument("--from-file", default=None, help="Override source file (for testing)")
     p_demote.add_argument("--to-file", default=None, help="Override destination file (for testing)")
+    write_mode = p_demote.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
 
     # list / ls
     p_list = subparsers.add_parser("list", parents=[parent], aliases=["ls"], help="List records in a pipeline stage.")

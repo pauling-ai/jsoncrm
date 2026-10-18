@@ -228,6 +228,26 @@ CASES = [
 ]
 
 
+for _base_case in [
+    case for case in CASES
+    if case["name"] in {"add", "update", "delete", "promote", "demote"}
+]:
+    for _mode in ("dry-run", "apply"):
+        _variant = copy.deepcopy(_base_case)
+        _variant["name"] = f"{_base_case['name']}-{_mode}"
+        _variant["command"] = _base_case["name"]
+        _variant["cli_args"].append(f"--{_mode}")
+        _variant["mcp_args"][_mode.replace("-", "_")] = True
+        CASES.append(_variant)
+
+_conflict_case = copy.deepcopy(next(case for case in CASES if case["name"] == "add"))
+_conflict_case["name"] = "add-conflicting-write-modes"
+_conflict_case["command"] = "add"
+_conflict_case["cli_args"].extend(["--dry-run", "--apply"])
+_conflict_case["mcp_args"].update(dry_run=True, apply=True)
+CASES.append(_conflict_case)
+
+
 def _resolve(value, root):
     if isinstance(value, str):
         return value.replace("$CRM", str(root))
