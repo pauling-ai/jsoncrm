@@ -11,7 +11,8 @@ jsoncrm = "jsoncrm.tool:main"
 
 [project.optional-dependencies]
 web = ["fastapi", "uvicorn"]
-dev = ["pytest"]
+mcp = ["mcp>=1.30,<2"]
+dev = ["pytest", "pytest-asyncio", "mcp>=1.30,<2"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

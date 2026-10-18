@@ -23,7 +23,9 @@ This project is hosted [here](https://www.jsoncrm.dev)
 ```bash
 pip install jsoncrm
 # or with web server support
-pip install jsoncrm[web]
+pip install "jsoncrm[web]"
+# or with MCP server support
+pip install "jsoncrm[mcp]"
 ```
 
 For JavaScript tests (optional):
@@ -138,11 +140,46 @@ A typical lead looks like:
 - `jsoncrm intake intake.json` — Pick next unscored record
 - `jsoncrm apply_update` — Apply pending update file
 
+### MCP Server
+- `jsoncrm mcp` — Start the stdio MCP server with CLI-parity tools
+
 ### Web Server
 - `jsoncrm serve` — Start the web UI on http://127.0.0.1:7341
 - `jsoncrm serve --port 8080 --github-token $TOKEN --repo owner/repo`
 
-All commands support `--config path/to/.crm.json` for custom configs.
+All commands support `--config path/to/.crm.json` for custom configs. Place this global option before the command, for example `jsoncrm --config /path/to/.crm.json stats`.
+
+## MCP Server
+
+Install the MCP extra and start the server from a CRM directory:
+
+```bash
+pip install "jsoncrm[mcp]"
+jsoncrm mcp
+```
+
+Every canonical CLI command except the long-running `serve` and `mcp` commands is exposed as an MCP tool; aliases such as `ls` are not duplicated. The tools use the same CLI implementation, and integration tests enforce command coverage, argument schemas, defaults, results, errors, and file effects.
+
+For Claude Desktop, add this to `claude_desktop_config.json` with an absolute config path:
+
+```json
+{
+  "mcpServers": {
+    "jsoncrm": {
+      "command": "jsoncrm",
+      "args": ["--config", "/absolute/path/to/.crm.json", "mcp"]
+    }
+  }
+}
+```
+
+For Claude Code:
+
+```bash
+claude mcp add --transport stdio jsoncrm -- jsoncrm --config /absolute/path/to/.crm.json mcp
+```
+
+The `item_json` arguments accept either the CLI's JSON-encoded string or a native MCP object. JSON list results are returned under `result`; output from legacy text-only commands is returned under `output`.
 
 ## Web UI
 
@@ -177,7 +214,7 @@ The "Open PR" button in the UI creates a branch, commits all pipeline files, and
 
 ### AI Agents
 - Read and write JSON files directly
-- Use the CLI as tools (MCP server compatible)
+- Use the CLI or first-party MCP server (`jsoncrm mcp`) as tools
 - No UI automation needed — just structured file I/O
 - Every change is auditable in git
 
@@ -228,9 +265,8 @@ pytest tests/
 # JavaScript tests
 npm test
 
-# Install in editable mode
-pip install -e .
-pip install -e ".[web]"
+# Install in editable mode with all development capabilities
+pip install -e ".[dev,web,mcp]"
 ```
 
 ## License

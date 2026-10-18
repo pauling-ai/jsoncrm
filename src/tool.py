@@ -1065,7 +1065,7 @@ def cmd_dump_emails(args):
         print("No emails found in pipeline.")
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description="Unified CRM tool.")
     parser.add_argument("--config", default=None, help="Path to .crm.json config file")
     subparsers = parser.add_subparsers(dest="command")
@@ -1254,6 +1254,14 @@ def main():
     p_serve.add_argument("--repo", default=os.environ.get("GITHUB_REPO", ""), help="owner/repo")
     p_serve.add_argument("--branch", default="main", help="Base branch for PRs")
 
+    # mcp
+    subparsers.add_parser("mcp", parents=[parent], help="Start the MCP stdio server.")
+
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.command is None:
@@ -1324,6 +1332,9 @@ def main():
         cmd_list(args)
     elif args.command == "dump_emails":
         cmd_dump_emails(args)
+    elif args.command == "mcp":
+        from jsoncrm.mcp import run_mcp
+        run_mcp(config_path=args.config)
     elif args.command == "serve":
         from jsoncrm.server import run_server
         run_server(
