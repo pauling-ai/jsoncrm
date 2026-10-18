@@ -129,6 +129,17 @@ A typical lead looks like:
 - `jsoncrm demote <identity> --customer` — Move customer → prospect
   (uses `identity.primary`; override with `--identity-field`)
 
+### Write Previews
+
+`add`, `update`, `delete`, `promote`, and `demote` write immediately by default. Use `--dry-run` to run the same validation and inspect the prospective record without writing CRM or output files. Use `--apply` when you want to make the write explicit; the two flags are mutually exclusive.
+
+```bash
+jsoncrm update --database_file leads.json --item_json '{"linkedin_url":"https://example.com/alice","company":"NewCo"}' --dry-run
+jsoncrm update --database_file leads.json --item_json '{"linkedin_url":"https://example.com/alice","company":"NewCo"}' --apply
+```
+
+Dry-run JSON output includes `dry_run: true` and the prospective `record`; stage moves also include `from` and `to`. The same boolean arguments are available as `dry_run` and `apply` through MCP.
+
 ### Data Quality
 - `jsoncrm validate` — Validate all pipeline files for structural integrity
 - `jsoncrm deduplicate intake.json` — Remove records already in pipeline
