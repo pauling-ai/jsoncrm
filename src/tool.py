@@ -1085,6 +1085,29 @@ def cmd_dump_emails(args):
         print("No emails found in pipeline.")
 
 
+def cmd_backup(args):
+    from jsoncrm.backup import create_backup
+
+    config_path = Path(args.config).resolve() if args.config else CRM_DIR / ".crm.json"
+    source_files = [*(path for _, path in PIPELINE_FILES), COMPETITORS_FILE]
+    if config_path.exists():
+        source_files.insert(0, config_path)
+    if PENDING_FILE.exists():
+        source_files.append(PENDING_FILE)
+    try:
+        result = create_backup(CRM_DIR, source_files, output=args.output)
+    except (OSError, ValueError) as exc:
+        print(f"Error: {exc}")
+        sys.exit(1)
+
+    if _jout(result):
+        return
+    print(f"Created backup: {result['backup']}")
+    print(f"Archived {len(result['files'])} file(s).")
+    if result["missing"]:
+        print(f"Missing: {', '.join(result['missing'])}")
+
+
 def build_parser():
     parser = argparse.ArgumentParser(description="Unified CRM tool.")
     parser.add_argument("--config", default=None, help="Path to .crm.json config file")
@@ -1282,6 +1305,11 @@ def build_parser():
     p_dump_emails.add_argument("--out", default=None,
                                help="Write the comma-separated emails to this file instead of stdout")
 
+    # backup
+    p_backup = subparsers.add_parser("backup", parents=[parent], help="Back up configured CRM files outside Git.")
+    p_backup.add_argument("--output", default=None,
+                          help="New ZIP path (default: ~/.jsoncrm/backups/<crm>-<timestamp>.zip)")
+
     # serve
     p_serve = subparsers.add_parser("serve", parents=[parent], help="Start the web UI server.")
     p_serve.add_argument("--port", type=int, default=7341, help="Port (default: 7341)")
@@ -1367,6 +1395,8 @@ def main():
         cmd_list(args)
     elif args.command == "dump_emails":
         cmd_dump_emails(args)
+    elif args.command == "backup":
+        cmd_backup(args)
     elif args.command == "mcp":
         from jsoncrm.mcp import run_mcp
         run_mcp(config_path=args.config)

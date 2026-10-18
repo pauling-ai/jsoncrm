@@ -323,6 +323,11 @@ def create_server(config_path=None):
         """Dump all unique pipeline email addresses, comma separated."""
         return _run_command("dump_emails", config_path, out=out)
 
+    @server.tool()
+    def backup(output: str | None = None):
+        """Create an atomic ZIP backup of configured CRM files outside Git."""
+        return _run_command("backup", config_path, output=output)
+
     return server
 
 

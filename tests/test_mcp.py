@@ -7,11 +7,13 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from jsoncrm.backup import MANIFEST_NAME
 from jsoncrm.mcp import EXCLUDED_COMMANDS
 from jsoncrm.tool import build_parser
 
@@ -214,6 +216,11 @@ CASES = [
         "mcp_args": {"out": "$CRM/emails.txt"},
     },
     {
+        "name": "backup",
+        "cli_args": ["--output", "$OUT/backup.zip"],
+        "mcp_args": {"output": "$OUT/backup.zip"},
+    },
+    {
         "name": "delete-not-found",
         "command": "delete",
         "cli_args": [
@@ -248,9 +255,13 @@ _conflict_case["mcp_args"].update(dry_run=True, apply=True)
 CASES.append(_conflict_case)
 
 
+def _output_root(root):
+    return root.parent / f"{root.name}-backups"
+
+
 def _resolve(value, root):
     if isinstance(value, str):
-        return value.replace("$CRM", str(root))
+        return value.replace("$CRM", str(root)).replace("$OUT", str(_output_root(root)))
     if isinstance(value, list):
         return [_resolve(item, root) for item in value]
     if isinstance(value, dict):
@@ -260,7 +271,7 @@ def _resolve(value, root):
 
 def _normalize(value, root):
     if isinstance(value, str):
-        return value.replace(str(root), "$CRM")
+        return value.replace(str(_output_root(root)), "$OUT").replace(str(root), "$CRM")
     if isinstance(value, list):
         return [_normalize(item, root) for item in value]
     if isinstance(value, dict):
@@ -287,7 +298,27 @@ def _normalized_tree(root):
     for path in sorted(root.rglob("*")):
         if path.is_file():
             relative = str(path.relative_to(root))
-            tree[relative] = path.read_text(encoding="utf-8").replace(str(root), "$CRM")
+            tree[relative] = _normalize(path.read_text(encoding="utf-8"), root)
+
+    output_root = _output_root(root)
+    if output_root.exists():
+        for path in sorted(output_root.rglob("*")):
+            if not path.is_file():
+                continue
+            relative = str(path.relative_to(output_root))
+            if path.suffix == ".zip":
+                with ZipFile(path) as archive:
+                    for name in sorted(archive.namelist()):
+                        content = archive.read(name)
+                        if name == MANIFEST_NAME:
+                            manifest = json.loads(content)
+                            manifest["created_at"] = "$TIMESTAMP"
+                            text = json.dumps(manifest, sort_keys=True, ensure_ascii=False)
+                        else:
+                            text = content.decode("utf-8")
+                        tree[f"$OUT/{relative}::{name}"] = _normalize(text, root)
+            else:
+                tree[f"$OUT/{relative}"] = _normalize(path.read_text(encoding="utf-8"), root)
     return tree
 
 
