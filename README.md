@@ -146,6 +146,10 @@ Dry-run JSON output includes `dry_run: true` and the prospective `record`; stage
 - `jsoncrm filter-competitors intake.json` — Remove competitor matches
 - `jsoncrm merge scored.json` — Merge scored records into leads
 
+### Backup
+- `jsoncrm backup` — Snapshot configured CRM files to a ZIP outside Git
+- `jsoncrm backup --output /path/to/backup.zip` — Write to an exact new ZIP path
+
 ### LinkedIn MCP
 - `jsoncrm parse-from-linkedin-mcp likes.json` — Convert MCP output to CRM flat list
 - `jsoncrm intake intake.json` — Pick next unscored record
@@ -249,6 +253,25 @@ git revert HEAD -- leads.json # Roll back
 ```
 
 The server writes to disk immediately, so local edits are always in sync with the filesystem. For upstream changes, use the GitHub PR flow or push directly.
+
+## Backups
+
+Git history does not protect against damage to `.git` itself. Create an independent ZIP snapshot with:
+
+```bash
+jsoncrm backup
+# Default: ~/.jsoncrm/backups/<crm-name>-<UTC-timestamp>.zip
+
+jsoncrm backup --output /path/to/recovery/backup.zip
+```
+
+Backups include the active config file, configured pipeline files, blocklist, and pending update file when present. Missing configured files are listed in the result and in `backup-manifest.json` inside the archive. Writes are atomic, existing backups are never overwritten, and destinations inside the CRM's Git repository are rejected.
+
+To recover manually, extract the ZIP into a new directory and inspect or copy back the JSON files:
+
+```bash
+unzip /path/to/backup.zip -d /path/to/recovered-crm
+```
 
 ## Configuration
 
