@@ -1,5 +1,9 @@
 # JSONCRM
 
+[![PyPI](https://img.shields.io/pypi/v/jsoncrm)](https://pypi.org/project/jsoncrm/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/jsoncrm)](https://pypi.org/project/jsoncrm/)
+[![License: AGPL-3.0](https://img.shields.io/pypi/l/jsoncrm)](https://www.gnu.org/licenses/agpl-3.0)
+
 A CRM system built on top of JSON. That's right. You may be wondering why? And the answer is: why not? If this doesn't immediately tickle your hypothalamus here is the longer intro ↓↓↓
 
 CRMs are valuable because they combine two things most companies fail to systematize: a structured database of customer relationships and a process engine that makes sure people actually do what they said they would do. Contacts, companies, deals, and activities form a living timeline of every interaction, while workflows make sure nothing quietly dies in a corner. The real power of a CRM is not the UI that guides people through a process, or the data contained in its database. It is the enforcement of consistent behavior at scale. In other words, it is the system that politely refuses to let you forget your leads.
@@ -301,6 +305,17 @@ npm test
 
 # Install in editable mode with all development capabilities
 pip install -e ".[dev,web,mcp]"
+```
+
+### Releasing
+
+1. Bump the version in **both** `pyproject.toml` and `src/__init__.py` (keep them in sync).
+2. Run `./publish.sh` — it builds fresh `dist/` artifacts and uploads them to PyPI.
+
+The publish token lives in the macOS Keychain, never in the repo. One-time setup on a new machine:
+
+```bash
+security add-generic-password -s pypi -a jsoncrm -w
 ```
 
 ## License

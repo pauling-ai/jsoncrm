@@ -5,6 +5,10 @@ __pycache__/
 dist/
 build/
 
+# Secrets
+.env
+.pypirc
+
 # Idea files
 .idea/
 
