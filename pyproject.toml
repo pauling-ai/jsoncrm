@@ -1,6 +1,6 @@
 [project]
 name = "jsoncrm"
-version = "1.0.0"
+version = "1.0.1"
 description = "A git-tracked, JSON-file CRM built for AI agents — CLI, local web UI, and a first-party MCP server"
 readme = "README.md"
 license = "AGPL-3.0-only"
