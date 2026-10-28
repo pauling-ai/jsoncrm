@@ -59,10 +59,10 @@
       first-class MCP toolset.
     </p>
     <div class="install-box">
-      <code>pip install "jsoncrm[web,mcp]"</code>
+      <code>uvx --from "jsoncrm[web,mcp]" jsoncrm serve</code>
       <button class="copy-btn" type="button" aria-label="Copy install command">copy</button>
     </div>
-    <p class="hero-note">Includes the local web UI and the MCP server · Python 3.10+ · <a href="#quickstart">60-second quick start</a></p>
+    <p class="hero-note">No install — uv runs it from PyPI · or <code>pip install "jsoncrm[web,mcp]"</code> · Python 3.10+ · <a href="#quickstart">60-second quick start</a></p>
     <div class="hero-ctas">
       <a class="btn btn-primary" href="#quickstart">Get started</a>
       <a class="btn btn-ghost" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">Source on GitHub</a>
@@ -208,10 +208,10 @@
     <div class="step">
       <div class="step-num">1</div>
       <div class="step-body">
-        <h3>Install</h3>
-        <div class="code-block"><span class="c"># web UI + MCP server</span>
-pip install "jsoncrm[web,mcp]"</div>
-        <p>Core CLI only: <code>pip install jsoncrm</code>. Requires Python 3.10+ · <a href="https://pypi.org/project/jsoncrm/" target="_blank" rel="noopener">on PyPI</a>.</p>
+        <h3>Get it running</h3>
+        <div class="code-block"><span class="c"># zero install — web UI + MCP server, straight from PyPI</span>
+uvx --from "jsoncrm[web,mcp]" jsoncrm serve</div>
+        <p>Or install: <code>pip install "jsoncrm[web,mcp]"</code> · core CLI only: <code>uvx jsoncrm stats</code> / <code>pip install jsoncrm</code>. Requires Python 3.10+ · <a href="https://pypi.org/project/jsoncrm/" target="_blank" rel="noopener">on PyPI</a>.</p>
       </div>
     </div>
 

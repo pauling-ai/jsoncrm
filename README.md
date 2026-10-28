@@ -22,12 +22,18 @@ This project is hosted [here](https://www.jsoncrm.dev)
 ## Installation
 
 ```bash
+# No install — run it straight from PyPI with uv
+uvx jsoncrm stats
+
+# Or install the core CLI (zero dependencies)
 pip install jsoncrm
-# or with web server support
+# with web server support
 pip install "jsoncrm[web]"
-# or with MCP server support
+# with MCP server support
 pip install "jsoncrm[mcp]"
 ```
+
+The core CLI has no dependencies, so a `uvx` cold start is near-instant. To run the web UI or MCP server without installing anything, use the extras form: `uvx --from "jsoncrm[web,mcp]" jsoncrm serve`.
 
 For JavaScript tests (optional):
 ```bash
