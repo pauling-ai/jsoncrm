@@ -203,6 +203,22 @@ claude mcp add --transport stdio jsoncrm -- jsoncrm --config /absolute/path/to/.
 
 The `item_json` arguments accept either the CLI's JSON-encoded string or a native MCP object. JSON list results are returned under `result`; output from legacy text-only commands is returned under `output`.
 
+## Agent Skill
+
+Give your agent expert jsoncrm workflow knowledge (dry-run discipline, identity rules, intake flow) by installing the first-party skill into your CRM repo — no MCP required, works alongside it:
+
+```bash
+# Claude Code (project-level skill)
+mkdir -p .claude/skills/jsoncrm
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/jsoncrm/SKILL.md \
+  -o .claude/skills/jsoncrm/SKILL.md
+
+# Codex / Cursor / any AGENTS.md-compatible agent
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/AGENTS-snippet.md >> AGENTS.md
+```
+
+For Claude Code user-level install (all projects), target `~/.claude/skills/jsoncrm/SKILL.md` instead.
+
 ## Web UI
 
 `jsoncrm serve` launches a local spreadsheet-like UI:
