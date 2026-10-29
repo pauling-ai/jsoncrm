@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs Airtable — a database in their cloud vs files in your repo</title>
+  <meta name="description" content="Airtable is the closest SaaS cousin of JSONCRM — real structure, real records. An honest Airtable CRM alternative comparison: where Airtable wins, and where seats, record limits, and cloud-only data push you to files.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/airtable">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs Airtable">
+  <meta property="og:description" content="Structured records in their cloud, or in your git repo. Honest comparison.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/airtable">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs Airtable</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> of all the SaaS tools people run CRMs on, Airtable is the
+      closest to JSONCRM's philosophy — actual structured records with typed fields, not a doc with
+      pretending-to-be-data inside. The fork in the road is ownership and cost at scale. Airtable keeps your
+      records in its cloud, prices per seat, and meters API usage; JSONCRM keeps them in JSON files in
+      <em>your</em> repo — free at any size, with git as the audit log and agents unmetered. Looking for an
+      Airtable CRM alternative that keeps the structure but loses the seats? That's the gap.
+      </p>
+    </div>
+
+    <div class="prose">
+      <p>
+        Credit where due: Airtable nailed the "database for humans" brief years before "agent-native" was a
+        phrase. Typed fields, views, forms, automations — it's a legitimately good CRM substrate, and many
+        teams should keep using it. This comparison is about the specific moment it stops fitting.
+      </p>
+
+      <h2>The core difference: your records, whose storage?</h2>
+      <p>
+        An Airtable base is a hosted database with an API in front. It's fast, collaborative, and backed up
+        by a company — and it's <em>theirs</em>: exports are snapshots, the API is rate-limited per plan,
+        record counts are capped per tier, and the audit story is whatever the product exposes. A JSONCRM
+        pipeline is a directory of JSON files: the "export" is the native format, the API is the file system
+        (plus a CLI and an MCP server), and the audit story is git — every field change a diff, every state
+        a commit, every review a PR.
+      </p>
+      <p>
+        That trade — hosted convenience vs file ownership — decides almost everything else. Automations,
+        forms, and interfaces live on Airtable's side of the scale; zero infrastructure, unlimited records,
+        and agents-without-a-meter live on ours.
+      </p>
+
+      <h2>Feature-by-feature</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Airtable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Data lives in</td>
+            <td class="col-us">JSON files in your git repo</td>
+            <td>Airtable's cloud</td>
+          </tr>
+          <tr>
+            <td>Records model</td>
+            <td class="col-us">Flat JSON objects, arbitrary fields, one array per stage</td>
+            <td>Typed fields, linked records, attachments</td>
+          </tr>
+          <tr>
+            <td>Pipeline enforcement</td>
+            <td class="col-us">Configured stages + transitions; invalid moves don't exist</td>
+            <td>By views/convention (status fields, automations)</td>
+          </tr>
+          <tr>
+            <td>AI agent access</td>
+            <td class="col-us">First-party MCP server + CLI; unlimited, dry-run on every write</td>
+            <td>REST API (rate-limited by plan) + third-party MCP wrappers</td>
+          </tr>
+          <tr>
+            <td>Forms &amp; capture</td>
+            <td class="col-us">Intake files (<code>parse-from-linkedin-mcp</code>, CSV-friendly JSON)</td>
+            <td>Built-in form views — genuinely great</td>
+          </tr>
+          <tr>
+            <td>Automations</td>
+            <td class="col-us">Scripts/agents over files (cron + CLI, CI, or MCP)</td>
+            <td>Built-in automations, no code</td>
+          </tr>
+          <tr>
+            <td>History &amp; audit</td>
+            <td class="col-us">Full git history, per-field diffs, revert, PR review</td>
+            <td>Revision history per record (limited window by plan)</td>
+          </tr>
+          <tr>
+            <td>Limits</td>
+            <td class="col-us">None — your disk, your repo</td>
+            <td>Records per base, API rate, attachments — all by plan</td>
+          </tr>
+          <tr>
+            <td>Price at 5 users, 10k records</td>
+            <td class="col-us">$0, AGPL-3.0</td>
+            <td>Free tier strains; ~$20/seat/mo Team plan territory</td>
+          </tr>
+          <tr>
+            <td>Best teammate persona</td>
+            <td class="col-us">Developers, operators, agents</td>
+            <td>Ops/marketing teams who want views and forms today</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Airtable pricing as of Oct 2026 — verify before buying.</p>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🧭 Choose Airtable if…</h3>
+        <ul>
+          <li>You want <strong>forms, views, and automations today</strong>, no code, no infra</li>
+          <li>Non-technical teammates live in the tool daily</li>
+          <li>Linked records and attachments matter (companies ↔ contacts ↔ files)</li>
+          <li>Your volume fits the plan you're happy to pay for</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li><strong>Ownership</strong>: the native format is the export; no base is ever "locked in"</li>
+          <li>You want <strong>unlimited records and unlimited agent calls</strong> — no seats, no meter</li>
+          <li><strong>Git as the audit log</strong>: per-field diffs, revert, PR review of CRM changes</li>
+          <li>Agents should run intake, scoring, and promotions with dry-run previews</li>
+          <li>Your pipeline is one structured flow, not a web of linked tables</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>A note on fairness</h2>
+      <p>
+        Airtable's forms, interfaces, and no-code automations are real product surface JSONCRM doesn't have
+        and isn't chasing — if your week breaks without them, stay. And Airtable's API is decent enough that
+        a determined engineer can wire agents to it. The honest pitch here is narrower: when your CRM is a
+        single structured pipeline, the database-under-it doesn't need to be hosted, priced per seat, and
+        metered — files and git were the answer all along.
+      </p>
+
+      <h2>Airtable CRM — common questions</h2>
+    </div>
+
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Can I use AI agents with an Airtable CRM?</summary>
+        <div class="faq-body">
+          <p>Yes, through Airtable's REST API or third-party MCP wrappers — but calls are rate-limited by plan and there's no dry-run semantics: an agent write lands immediately. JSONCRM agents write through 21 purpose-built MCP tools where every write can be previewed with <code>dry_run</code> before it touches the files.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I export a CRM from Airtable?</summary>
+        <div class="faq-body">
+          <p>Export each table as CSV, map columns to flat record fields, and place the arrays in your stage files (leads.json, prospects.json, customers.json). JSONCRM records take any fields you had, so nothing is lost structurally — then <code>jsoncrm validate</code> and your first commit starts the audit log.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is Airtable free for CRM use?</summary>
+        <div class="faq-body">
+          <p>There's a free tier, but it caps records per base and limits automations and API throughput — real pipelines outgrow it quickly, and the Team plan (~$20/seat/mo) is where most teams land. JSONCRM is free and unlimited at any size; your costs are a git remote you probably already have.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can I use AI agents with an Airtable CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes, via the REST API or third-party MCP wrappers, but calls are rate-limited by plan and writes land immediately. JSONCRM gives agents 21 purpose-built MCP tools with dry_run previews on every write, unmetered." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I export a CRM from Airtable?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Export tables as CSV, map columns to flat JSONCRM record fields, place records in the stage files, run jsoncrm validate, and commit." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Airtable free for CRM use?",
+          "acceptedAnswer": { "@type": "Answer", "text": "A free tier exists but caps records, automations, and API throughput; most teams land on the ~$20/seat/month Team plan. JSONCRM is free at any size with no seat pricing." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>Keep the structure. Drop the seats.</h2>
+      <p>Typed records, enforced stages, git audit log — in files you own.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="../index.html#quickstart">Quick start</a></li>
+          <li><a href="../mcp.html">MCP setup guide</a></li>
+          <li><a href="../cookbook.html">Agent cookbook</a></li>
+          <li><a href="../philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="notion.html">vs Notion</a></li>
+          <li><a href="airtable.html">vs Airtable</a></li>
+          <li><a href="hubspot.html">vs HubSpot</a></li>
+          <li><a href="../open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

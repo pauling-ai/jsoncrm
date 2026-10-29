@@ -279,10 +279,18 @@ jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
   }
 }</div>
       </div>
+      <div class="card">
+        <h3>No MCP? Install the agent skill</h3>
+        <div class="code-block">mkdir -p .claude/skills/jsoncrm
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/jsoncrm/SKILL.md \
+  -o .claude/skills/jsoncrm/SKILL.md</div>
+        <p style="margin-top:8px;font-size:14px">Workflow knowledge without a server — dry-run discipline, identity rules, intake flow. Codex/Cursor: append <code>skills/AGENTS-snippet.md</code> to your <code>AGENTS.md</code>.</p>
+      </div>
     </div>
     <p class="section-sub" style="margin-top:24px">
       Any stdio MCP client works (Cursor, Codex, …). Then ask your agent things like
       <em>"score the unscored leads in my CRM"</em> or <em>"promote everyone at ⭐⭐⭐⭐ or above and show me a dry run first."</em>
+      Full walkthrough: <a href="mcp.html">the MCP setup guide</a> · recipes: <a href="cookbook.html">the agent cookbook</a>.
     </p>
   </div>
 </section>
@@ -392,6 +400,30 @@ jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
         <p>Your actual incumbent. Where sheets break (schema, enforcement, history, agents) and where they still win.</p>
         <span class="go">Read comparison →</span>
       </a>
+      <a class="vs-card" href="vs/notion.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs Notion</h3>
+        <p>A superb workspace with a database bolted in vs a purpose-built pipeline. Where the template starts fighting you.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="vs/airtable.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs Airtable</h3>
+        <p>The closest SaaS cousin — real structure, real records — in their cloud vs files in your repo. Seats and meters vs git.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="vs/hubspot.html">
+        <span class="vs-tag">/vs</span>
+        <h3>JSONCRM vs HubSpot</h3>
+        <p>The full revenue machine vs a pipeline you own. When seats and AI credits stop making sense.</p>
+        <span class="go">Read comparison →</span>
+      </a>
+      <a class="vs-card" href="open-source-crm.html">
+        <span class="vs-tag">/guide</span>
+        <h3>Open source CRM in 2026</h3>
+        <p>The field guide: git-native newcomers (JSONCRM, Hermit) vs the full stacks (Twenty, SuiteCRM, Odoo, EspoCRM).</p>
+        <span class="go">Read the guide →</span>
+      </a>
     </div>
   </div>
 </section>
@@ -482,6 +514,8 @@ jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
         <ul>
           <li><a href="#quickstart">Quick start</a></li>
           <li><a href="#mcp">Connect an agent</a></li>
+          <li><a href="mcp.html">MCP setup guide</a></li>
+          <li><a href="cookbook.html">Agent cookbook</a></li>
           <li><a href="#faq">FAQ</a></li>
           <li><a href="philosophy.html">Philosophy</a></li>
         </ul>
@@ -492,8 +526,11 @@ jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
           <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
           <li><a href="vs/twenty.html">vs Twenty</a></li>
           <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/notion.html">vs Notion</a></li>
+          <li><a href="vs/airtable.html">vs Airtable</a></li>
+          <li><a href="vs/hubspot.html">vs HubSpot</a></li>
           <li><a href="vs/spreadsheets.html">vs spreadsheets</a></li>
-          <li><a href="#compare">All comparisons</a></li>
+          <li><a href="open-source-crm.html">Open source CRM guide</a></li>
         </ul>
       </div>
       <div class="footer-col">

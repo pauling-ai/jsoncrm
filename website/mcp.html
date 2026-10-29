@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run your CRM from Claude Code, Cursor, or Codex — JSONCRM MCP setup guide</title>
+  <meta name="description" content="Step-by-step guide to connecting the JSONCRM MCP server to Claude Code, Claude Desktop, Cursor, or Codex — plus the dry-run workflow that makes agent-written CRM changes safe to review.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/mcp">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Run your CRM from Claude Code, Cursor, or Codex — MCP setup guide">
+  <meta property="og:description" content="Connect the JSONCRM MCP server to any stdio MCP client in minutes. Same commands as the CLI, dry-run on every write.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/mcp">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="./#features">Features</a>
+      <a href="./#quickstart">Try it</a>
+      <a href="./#agents">For agents</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="./">← home</a>
+    <h1 class="section-title" style="text-align:left">Run your CRM from Claude Code, Cursor, or Codex</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> <code>jsoncrm mcp</code> starts a stdio MCP server that exposes
+      every CLI command as a tool — same names, same arguments, plus <code>dry_run</code> and <code>apply</code>
+      booleans on every write. Point any MCP client at it and your agent can search, score, promote, and
+      validate the pipeline, with previews before anything lands on disk.</p>
+    </div>
+
+    <div class="prose">
+      <h2>What you need</h2>
+      <ul>
+        <li>A CRM directory with a <code>.crm.json</code> (or the marketing-CRM defaults — see the <a href="./#quickstart">quick start</a>)</li>
+        <li>The server: <code>pip install "jsoncrm[mcp]"</code> — or zero-install with <code>uvx --from "jsoncrm[mcp]" jsoncrm mcp</code></li>
+        <li>The <strong>absolute path</strong> to your <code>.crm.json</code> (MCP clients don't inherit your shell's working directory)</li>
+      </ul>
+
+      <h2>How the tools map to the CLI</h2>
+      <p>
+        There is nothing to relearn. <code>search</code>, <code>stats</code>, <code>list</code>, <code>add</code>,
+        <code>update</code>, <code>delete</code>, <code>promote</code>, <code>demote</code>, <code>validate</code>,
+        <code>deduplicate</code>, <code>merge</code>, <code>backup</code> — every canonical command is a tool with the
+        same name. Two MCP-specific conveniences:
+      </p>
+      <ul>
+        <li><code>item_json</code> accepts a <strong>native object</strong> — no string-encoded JSON</li>
+        <li>Every write tool takes <code>dry_run</code> and <code>apply</code> booleans, mutually exclusive, matching the CLI's <code>--dry-run</code> / <code>--apply</code></li>
+      </ul>
+    </div>
+
+    <div class="grid grid-2" style="margin-top:8px">
+      <div class="card">
+        <h3>Claude Code</h3>
+        <div class="code-block">claude mcp add --transport stdio jsoncrm -- \
+  jsoncrm --config /absolute/path/to/.crm.json mcp</div>
+      </div>
+      <div class="card">
+        <h3>Claude Desktop</h3>
+        <div class="code-block">{
+  "mcpServers": {
+    "jsoncrm": {
+      "command": "jsoncrm",
+      "args": ["--config", "/absolute/path/to/.crm.json", "mcp"]
+    }
+  }
+}</div>
+        <p style="margin-top:8px;font-size:14px">In <code>claude_desktop_config.json</code> (Settings → Developer).</p>
+      </div>
+      <div class="card">
+        <h3>Cursor</h3>
+        <div class="code-block">// .cursor/mcp.json (project) or ~/.cursor/mcp.json (global)
+{
+  "mcpServers": {
+    "jsoncrm": {
+      "command": "jsoncrm",
+      "args": ["--config", "/absolute/path/to/.crm.json", "mcp"]
+    }
+  }
+}</div>
+        <p style="margin-top:8px;font-size:14px">Or add it under Settings → MCP.</p>
+      </div>
+      <div class="card">
+        <h3>Codex</h3>
+        <div class="code-block"># ~/.codex/config.toml
+[mcp_servers.jsoncrm]
+command = "jsoncrm"
+args = ["--config", "/absolute/path/to/.crm.json", "mcp"]</div>
+      </div>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Verify it works</h2>
+      <p>Ask your agent:</p>
+      <div class="code-block">"list the jsoncrm tools, then run stats on my CRM"</div>
+      <p>
+        You should see the tool list (21 tools) and the per-stage counts from your pipeline files. If the agent
+        can't find the tools, the config path is the usual suspect — it must be absolute.
+      </p>
+
+      <h2>The dry-run discipline</h2>
+      <p>
+        This is the part that makes agent-written CRM changes reviewable. Ask for a preview, read the JSON,
+        then apply:
+      </p>
+      <div class="code-block">"promote everyone at ⭐⭐⭐⭐ or above to prospects — dry run first, show me the records"</div>
+      <p>
+        The agent calls <code>promote</code> with <code>dry_run: true</code> for each record; nothing is written.
+        Every result includes the prospective record. When it looks right:
+      </p>
+      <div class="code-block">"looks good — apply all of them, then commit with a message summarizing the promotions"</div>
+      <p>
+        The write lands, <code>git diff</code> shows exactly what changed, and the commit becomes the audit
+        entry. The same preview-then-apply loop works for <code>add</code>, <code>update</code>,
+        <code>delete</code>, and <code>demote</code>.
+      </p>
+
+      <h2>Good first prompts</h2>
+      <div class="code-block">"search my pipeline for anyone at TestPharma"
+"show me the top 5 unscored leads, then score them with a one-line rationale each — dry run"
+"validate all pipeline files and report anything suspicious"
+"who was added to the CRM this week?"</div>
+      <p>More recipes: the <a href="cookbook.html">agent cookbook</a>.</p>
+
+      <h2>Troubleshooting</h2>
+      <ul>
+        <li><strong>Tools don't appear:</strong> check the client's MCP log; confirm <code>jsoncrm mcp</code> runs in a terminal</li>
+        <li><strong>"no such file" errors:</strong> the config path isn't absolute, or the client's shell can't find <code>jsoncrm</code> — use the full path to the executable (e.g. <code>/Users/you/.local/bin/jsoncrm</code>)</li>
+        <li><strong>Empty pipeline:</strong> the server reads the CRM directory your <code>.crm.json</code> lives in — if you point it at the wrong directory, you get empty arrays, not an error</li>
+        <li><strong>Agent hand-edits JSON anyway:</strong> install the <a href="https://github.com/pauling-ai/jsoncrm/blob/main/skills/jsoncrm/SKILL.md" target="_blank" rel="noopener">agent skill</a> so it knows the house rules (never hand-edit when a tool exists, dry-run first, commit after writes)</li>
+      </ul>
+    </div>
+
+    <div class="cta-band">
+      <h2>Your CRM is now an agent tool.</h2>
+      <p>Same files, same git history, now with 21 tools your agent can call.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="cookbook.html">Read the cookbook</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="./#quickstart">Quick start</a></li>
+          <li><a href="mcp.html">MCP setup guide</a></li>
+          <li><a href="cookbook.html">Agent cookbook</a></li>
+          <li><a href="philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="vs/twenty.html">vs Twenty</a></li>
+          <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/notion.html">vs Notion</a></li>
+          <li><a href="open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

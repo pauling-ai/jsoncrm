@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open source CRM in 2026 — a field guide to free, self-hosted CRMs</title>
+  <meta name="description" content="The honest 2026 guide to open source CRM: the git-native newcomers (JSONCRM, Hermit), the full stacks (Twenty, SuiteCRM, Odoo, EspoCRM), what open source actually buys you, and how to choose.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/open-source-crm">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Open source CRM in 2026 — a field guide">
+  <meta property="og:description" content="Git-native newcomers vs full stacks: what open source CRM buys you, and how to pick yours.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/open-source-crm">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="./#features">Features</a>
+      <a href="./#quickstart">Try it</a>
+      <a href="#landscape">The field</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="./">← home</a>
+    <h1 class="section-title" style="text-align:left">Open source CRM, honestly assessed</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> open source CRM is having a moment, and for a real reason — AI
+      agents changed the requirements. When your CRM has an API an agent can call, ownership of the data and
+      the interface suddenly matters. The field splits into <em>full stacks</em> you self-host (Twenty,
+      SuiteCRM, Odoo, EspoCRM) and a new <em>git-native</em> strain (JSONCRM, Hermit CRM) where the CRM is
+      plain files in a repository. We built one of them, so read this as a biased-but-honest map.
+      </p>
+    </div>
+
+    <div class="prose">
+      <h2>What "open source CRM" actually buys you</h2>
+      <ul>
+        <li><strong>No seats, no credits.</strong> Pricing that scales with your success is a SaaS invention; open source doesn't meter your own data.</li>
+        <li><strong>Data ownership.</strong> The pipeline lives on infrastructure you control — a server, a laptop, or a git host.</li>
+        <li><strong>Auditability.</strong> Real change history you can inspect, not a vendor's promise.</li>
+        <li><strong>Agent access without a meter.</strong> Every serious open source CRM exposes an API or MCP server your agents can use for free, unlimited.</li>
+      </ul>
+      <p>
+        One caveat: "open source" means an <strong>OSI license</strong> (AGPL, Apache, MIT…). Some vendors
+        market source-available licenses (BSL, FSL, Elastic) as open source — they're not, and the difference
+        matters if you embed, resell, or run a service on top. Check the LICENSE file before you commit.
+      </p>
+
+      <h2 id="landscape">The 2026 field</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Hermit CRM</th>
+            <th>Twenty</th>
+            <th>SuiteCRM</th>
+            <th>Odoo CRM</th>
+            <th>EspoCRM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Strain</td>
+            <td class="col-us">Git-native files</td>
+            <td>Git-native files</td>
+            <td>Full web stack</td>
+            <td>Full web stack</td>
+            <td>Full business suite</td>
+            <td>Full web stack</td>
+          </tr>
+          <tr>
+            <td>Data lives in</td>
+            <td class="col-us">JSON files in your git repo</td>
+            <td>Markdown in your git repo</td>
+            <td>Postgres (you run it) or their cloud</td>
+            <td>MySQL + files on your server</td>
+            <td>Postgres, full ERP</td>
+            <td>MySQL/MariaDB</td>
+          </tr>
+          <tr>
+            <td>Infrastructure</td>
+            <td class="col-us"><code>pip install</code></td>
+            <td><code>pip install</code></td>
+            <td>Docker + Postgres</td>
+            <td>PHP + MySQL server</td>
+            <td>Docker or installer + Postgres</td>
+            <td>PHP + MySQL server</td>
+          </tr>
+          <tr>
+            <td>AI agent story</td>
+            <td class="col-us">First-party MCP server + CLI + agent skill; dry-run on every write</td>
+            <td>MCP server</td>
+            <td>API + MCP</td>
+            <td>REST API</td>
+            <td>REST API (+ paid AI modules)</td>
+            <td>REST API</td>
+          </tr>
+          <tr>
+            <td>Web UI</td>
+            <td class="col-us">Local spreadsheet-style (<code>serve</code>)</td>
+            <td>Local web app</td>
+            <td>Full hosted-grade app</td>
+            <td>Full classic app</td>
+            <td>Full suite app</td>
+            <td>Full classic app</td>
+          </tr>
+          <tr>
+            <td>License</td>
+            <td class="col-us">AGPL-3.0</td>
+            <td>Apache-2.0</td>
+            <td>AGPL-3.0 (core)</td>
+            <td>AGPL-3.0</td>
+            <td>LGPL-3.0 (Community)</td>
+            <td>AGPL-3.0</td>
+          </tr>
+          <tr>
+            <td>Best for</td>
+            <td class="col-us">Pipelines agents compute over; zero infra; git-first teams</td>
+            <td>Notes-driven solo pipelines</td>
+            <td>A real CRM app, self-hosted</td>
+            <td>Classic CRM needs, on-prem</td>
+            <td>CRM inside a whole ERP</td>
+            <td>Lightweight classic CRM</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Details as of Oct 2026 — verify before committing. We build JSONCRM, so we're the biased column; the deep comparisons below are fairer than this table.</p>
+
+    <div class="prose">
+      <h2>Two strains, two philosophies</h2>
+      <p>
+        The full stacks give you what you'd expect from Salesforce minus the bill: dashboards, workflows,
+        permissions, email integration — at the cost of running a server, a database, and upgrades forever.
+        They're the right answer when "CRM" means <em>a system of record a company logs into</em>.
+      </p>
+      <p>
+        The git-native strain asks a different question: if the CRM's value is the <em>state</em> — who's in
+        the pipeline, what stage, what score — why isn't that state just files? Plain files mean zero
+        infrastructure, git gives you history and collaboration for free, and the structure gives agents
+        something they can read and write without an ORM. The tradeoff is deliberate scope: no dashboards, no
+        email server, no permission matrix. A pipeline, files, and tools.
+      </p>
+
+      <h2>How to choose</h2>
+      <ul>
+        <li><strong>"I want a real CRM app for a team, self-hosted"</strong> → Twenty (modern) or SuiteCRM/EspoCRM (classic); Odoo if you're buying a whole ERP anyway.</li>
+        <li><strong>"My pipeline is structured records and an agent should run it"</strong> → JSONCRM.</li>
+        <li><strong>"My pipeline is notes and conversations"</strong> → Hermit CRM.</li>
+        <li><strong>"I want to try one in the next five minutes"</strong> → <code>uvx jsoncrm stats</code>. The git-native strain has a unfairly low activation energy.</li>
+      </ul>
+
+      <h2>Deep comparisons</h2>
+      <p>
+        Head-to-head, with the tradeoffs spelled out:
+        <a href="vs/hermit-crm.html">vs Hermit CRM</a> ·
+        <a href="vs/twenty.html">vs Twenty</a> ·
+        <a href="vs/attio.html">vs Attio</a> (the funded AI-native SaaS) ·
+        <a href="vs/notion.html">vs Notion</a> ·
+        <a href="vs/airtable.html">vs Airtable</a> ·
+        <a href="vs/hubspot.html">vs HubSpot</a> ·
+        <a href="vs/spreadsheets.html">vs a spreadsheet</a>.
+      </p>
+    </div>
+
+    <div class="prose" style="margin-top:36px">
+      <h2>Open source CRM — common questions</h2>
+    </div>
+    <div style="max-width:760px;margin:0 auto">
+      <details>
+        <summary>What is the best free open source CRM?</summary>
+        <div class="faq-body">
+          <p>"Best" depends on what you're replacing. For a team wanting a self-hosted Salesforce alternative, Twenty is the modern pick; SuiteCRM and EspoCRM are battle-tested classics. For individuals and small teams whose pipeline is structured records — and who want AI agents operating it — JSONCRM runs on plain JSON files in git with zero infrastructure. Hermit CRM covers the notes-driven, prose-first version of the same idea.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can I use an open source CRM commercially?</summary>
+        <div class="faq-body">
+          <p>Yes. AGPL/Apache/MIT/LGPL all permit commercial use. The obligations differ: AGPL requires you to offer source (including modifications) to users interacting over a network, while permissive licenses like Apache-2.0 have no such requirement. Using a CRM internally with your own customer data triggers no AGPL obligations at all — your CRM records are your data, not the software.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Do open source CRMs work with AI agents like Claude?</summary>
+        <div class="faq-body">
+          <p>Increasingly, yes — the newer ones ship MCP servers natively. JSONCRM exposes every CLI command as an MCP tool (21 tools) with dry-run support on every write; Hermit CRM ships its own MCP server; Twenty offers an API and MCP. For the older stacks, agents go through their REST APIs.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What's a "git-native" CRM?</summary>
+        <div class="faq-body">
+          <p>A CRM where the system of record is plain files inside a git repository: every change is a diff, every state is a commit, collaboration happens through branches and pull requests. JSONCRM (JSON files) and Hermit CRM (Markdown) are the two current examples; both also ship MCP servers for agents.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "What is the best free open source CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "It depends on the job: Twenty for a self-hosted Salesforce alternative; SuiteCRM and EspoCRM as battle-tested classics; JSONCRM if the pipeline is structured records you want AI agents to operate, with zero infrastructure; Hermit CRM for notes-first pipelines." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I use an open source CRM commercially?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes — AGPL, Apache-2.0, MIT and LGPL all permit commercial use. Internal use with your own customer data triggers no copyleft obligations; your CRM records are your data, not the software." }
+        },
+        {
+          "@type": "Question",
+          "name": "Do open source CRMs work with AI agents like Claude?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The newer ones ship MCP servers natively: JSONCRM exposes 21 CLI-parity MCP tools with dry-run on every write, Hermit CRM ships an MCP server, and Twenty offers an API and MCP. Older stacks are reachable through their REST APIs." }
+        },
+        {
+          "@type": "Question",
+          "name": "What is a git-native CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "A CRM whose system of record is plain files in a git repository: every change is a diff, every state is a commit, and collaboration happens through branches and pull requests. JSONCRM and Hermit CRM are current examples." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band" style="margin-top:52px">
+      <h2>Try the zero-infrastructure column.</h2>
+      <p>uvx jsoncrm stats — five seconds, no server, no database, no account.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="./#quickstart">Start a CRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="./#quickstart">Quick start</a></li>
+          <li><a href="mcp.html">MCP setup guide</a></li>
+          <li><a href="cookbook.html">Agent cookbook</a></li>
+          <li><a href="philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="vs/twenty.html">vs Twenty</a></li>
+          <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/notion.html">vs Notion</a></li>
+          <li><a href="open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
