@@ -1,0 +1,11 @@
+{
+  "name": "jsoncrm",
+  "version": "1.0.1",
+  "description": "Agent skill for JSONCRM — a CRM of plain JSON files in git. Teaches CLI house rules: dry-run before every write, promote/demote along enforced transitions, commit after writes.",
+  "author": {
+    "name": "Pauling.AI"
+  },
+  "homepage": "https://www.jsoncrm.dev",
+  "repository": "https://github.com/pauling-ai/jsoncrm",
+  "license": "AGPL-3.0"
+}

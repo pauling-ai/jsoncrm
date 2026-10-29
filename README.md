@@ -205,7 +205,15 @@ The `item_json` arguments accept either the CLI's JSON-encoded string or a nativ
 
 ## Agent Skill
 
-Give your agent expert jsoncrm workflow knowledge (dry-run discipline, identity rules, intake flow) by installing the first-party skill into your CRM repo — no MCP required, works alongside it:
+Give your agent expert jsoncrm workflow knowledge (dry-run discipline, identity rules, intake flow) — no MCP required, works alongside it.
+
+**Claude Code plugin** (one command, managed and updatable):
+
+```
+/plugin install jsoncrm --marketplace pauling-ai/jsoncrm
+```
+
+**Or install the skill directly** into your CRM repo:
 
 ```bash
 # Claude Code (project-level skill)

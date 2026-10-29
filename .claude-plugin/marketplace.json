@@ -1,0 +1,15 @@
+{
+  "name": "jsoncrm",
+  "description": "Official JSONCRM plugin marketplace — the agent skill for the JSON-files-in-git CRM.",
+  "owner": {
+    "name": "Pauling.AI",
+    "url": "https://github.com/pauling-ai"
+  },
+  "plugins": [
+    {
+      "name": "jsoncrm",
+      "source": "./",
+      "description": "Agent skill for operating a JSON-files-in-git CRM — search, scoring, promote/demote with dry-run previews, intake and validation flows."
+    }
+  ]
+}
