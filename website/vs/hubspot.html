@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs HubSpot — when free starts meaning seats and credits</title>
+  <meta name="description" content="HubSpot's free CRM is genuinely good — and genuinely a funnel to seat- and credit-priced plans. An honest HubSpot alternative comparison for teams whose pipeline outgrew the free tier.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/hubspot">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs HubSpot">
+  <meta property="og:description" content="The full marketing machine vs your repo. Honest comparison.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/hubspot">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs HubSpot</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> HubSpot is a complete revenue platform — CRM, sequences, forms,
+      marketing automation, reporting — with a genuinely useful free tier and a cost curve that bends upward
+      the moment you grow or want AI. JSONCRM is none of that: it's a pipeline of structured records in your
+      git repo with agents as first-class users and a flat price of zero. If you need the machine, HubSpot
+      earns its money. If you mainly need <em>a pipeline you and your agents operate</em>, paying seats to
+      track your own leads reads strange fast.
+      </p>
+    </div>
+
+    <div class="prose">
+      <p>
+        HubSpot is the incumbent most teams try first, and often the last one they leave — the free CRM is
+        real software, not a demo. The honest framing isn't "HubSpot bad"; it's that HubSpot's economics are
+        built for a marketing organization, and its data model is built for HubSpot. Both matter at the
+        edges.
+      </p>
+
+      <h2>The core difference: platform gravity vs file portability</h2>
+      <p>
+        Everything in HubSpot lives in HubSpot: contacts, deals, timelines, email logs. Export exists, but
+        the living data — workflows, sequences, history — doesn't travel. The product is excellent at being
+        the center of gravity; that's by design. JSONCRM inverts it: the center of gravity is a directory of
+        JSON files. Any tool can read them, any agent can write them (through enforced commands), any git
+        host backs them up. You can leave JSONCRM in one <code>git clone</code> because there's nothing to
+        leave — the data was always yours, in the open.
+      </p>
+      <p>
+        The AI angle sharpens the difference. HubSpot's AI (Breeze and friends) is metered in credits on
+        paid tiers — you rent their intelligence against your data. JSONCRM's agent story is bring-your-own:
+        Claude, Cursor, Codex, anything speaking MCP, unlimited calls, every write previewable with dry-run.
+        When agents got cheap in 2026, "seats + credits for AI on your own data" became a hard sell.
+      </p>
+
+      <h2>Feature-by-feature</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>HubSpot</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>What it is</td>
+            <td class="col-us">Git-native pipeline (files + CLI + MCP)</td>
+            <td>Full revenue platform (CRM + marketing + service)</td>
+          </tr>
+          <tr>
+            <td>Data lives in</td>
+            <td class="col-us">JSON files in your git repo</td>
+            <td>HubSpot's cloud</td>
+          </tr>
+          <tr>
+            <td>Email sequences &amp; marketing</td>
+            <td class="col-us">Not built in (export emails, use your own tooling)</td>
+            <td>Best-in-class, deeply integrated</td>
+          </tr>
+          <tr>
+            <td>Forms &amp; capture</td>
+            <td class="col-us">Intake files + LinkedIn likers pipeline</td>
+            <td>Forms, live chat, ad integrations — excellent</td>
+          </tr>
+          <tr>
+            <td>AI agent access</td>
+            <td class="col-us">First-party MCP server, 21 tools, dry-run writes, unmetered</td>
+            <td>API limits by tier; Breeze AI metered in credits</td>
+          </tr>
+          <tr>
+            <td>Pipeline enforcement</td>
+            <td class="col-us">Configured stages + transitions, hard-enforced</td>
+            <td>Deal pipelines, configurable</td>
+          </tr>
+          <tr>
+            <td>History &amp; audit</td>
+            <td class="col-us">Git: per-field diffs, revert, PR review</td>
+            <td>Activity log inside the product</td>
+          </tr>
+          <tr>
+            <td>Reporting</td>
+            <td class="col-us"><code>stats</code>, <code>top</code>, agent-written analysis</td>
+            <td>Dashboards, attribution, forecasting — extensive</td>
+          </tr>
+          <tr>
+            <td>Price as you grow</td>
+            <td class="col-us">$0 forever, AGPL-3.0</td>
+            <td>Free tier → Starter seats → Professional $$$; AI credits extra</td>
+          </tr>
+          <tr>
+            <td>Leaving</td>
+            <td class="col-us">Nothing to leave — it's your repo</td>
+            <td>Painful by construction</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">HubSpot pricing as of Oct 2026 — verify before buying.</p>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🧭 Choose HubSpot if…</h3>
+        <ul>
+          <li>You want <strong>the whole machine</strong>: sequences, forms, chat, marketing automation out of the box</li>
+          <li>Non-technical sales teammates need polish and mobile apps</li>
+          <li>You value vendor-integrated reporting and attribution over raw data ownership</li>
+          <li>Your budget fits seats-and-credits economics comfortably</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li>Your pipeline is <strong>structured records agents should operate</strong>, with dry-run previews</li>
+          <li><strong>Zero marginal cost</strong> as the pipeline grows matters more than built-in marketing</li>
+          <li>You want git diffs, revert, and PR review as the audit trail</li>
+          <li>Data ownership and portability are requirements, not preferences</li>
+          <li>Your "reporting" is honestly five numbers — <code>jsoncrm stats</code> covers it</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>A note on fairness</h2>
+      <p>
+        Feature-for-feature, HubSpot wins on width — that's what 15 years and billions in R&amp;D buy, and
+        pretending otherwise would be marketing. JSONCRM wins on a different axis on purpose: ownership,
+        cost-at-scale, and being natively operable by the AI agents you already pay for. Plenty of healthy
+        companies run both: HubSpot for the marketing org, a git-native CRM for the founder-led pipeline
+        that feeds it.
+      </p>
+
+      <h2>HubSpot alternatives — common questions</h2>
+    </div>
+
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Is HubSpot's free CRM really free?</summary>
+        <div class="faq-body">
+          <p>The core CRM — contacts, deals, tasks — is free and good. The economics kick in at the edges: sequences, automation, custom reporting, and meaningful AI usage live on paid tiers, priced per seat (plus credits for AI), and the free tier's contact notifications exist to upsell. It's a fair deal for many teams; just price the version you'll actually run, not the signup page.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Can AI agents work directly in HubSpot?</summary>
+        <div class="faq-body">
+          <p>Via HubSpot's API with tier-based rate limits, and via Breeze, HubSpot's own AI, metered in credits. JSONCRM gives agents a first-party MCP server — 21 CLI-parity tools, unlimited calls, dry-run previews on every write — because the pipeline is local files, not a hosted product.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I migrate a pipeline out of HubSpot?</summary>
+        <div class="faq-body">
+          <p>Export contacts and deals as CSV, map lifecycle stage to your pipeline stages (leads/prospects/customers or your own), map fields to flat record properties, and drop the arrays into your stage files. Run <code>jsoncrm deduplicate</code> on the result, then <code>validate</code>, then commit — from that point the audit log is git.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is HubSpot's free CRM really free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "The core CRM is free and good; sequences, automation, custom reporting, and meaningful AI usage live on paid tiers priced per seat plus AI credits. Price the version you'll actually run." }
+        },
+        {
+          "@type": "Question",
+          "name": "Can AI agents work directly in HubSpot?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Via HubSpot's API with tier-based limits, or Breeze AI metered in credits. JSONCRM gives agents a first-party MCP server — 21 tools, unlimited calls, dry-run on every write — since the pipeline is local files." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I migrate a pipeline out of HubSpot?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Export contacts and deals as CSV, map lifecycle stages and fields to flat JSONCRM record properties, load the stage files, run deduplicate and validate, and commit." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>A pipeline you own end to end.</h2>
+      <p>Files, git, agents. No seats, no credits, no center of gravity but you.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="../index.html#quickstart">Quick start</a></li>
+          <li><a href="../mcp.html">MCP setup guide</a></li>
+          <li><a href="../cookbook.html">Agent cookbook</a></li>
+          <li><a href="../philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="notion.html">vs Notion</a></li>
+          <li><a href="airtable.html">vs Airtable</a></li>
+          <li><a href="hubspot.html">vs HubSpot</a></li>
+          <li><a href="../open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
