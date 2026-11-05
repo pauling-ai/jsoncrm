@@ -39,6 +39,7 @@
     <nav class="nav-links">
       <a href="#features">Features</a>
       <a href="#quickstart">Try it</a>
+      <a href="#configuration">Config</a>
       <a href="#agents">For agents</a>
       <a href="#compare">Compare</a>
       <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
@@ -138,7 +139,12 @@
       <div class="card">
         <span class="icon">🔀</span>
         <h3>Enforced pipeline</h3>
-        <p>Stages and legal transitions live in <code>.crm.json</code>. <code>promote</code> and <code>demote</code> move records; invalid moves simply don't exist.</p>
+        <p>Stages and legal transitions live in <code>.crm.json</code>. <code>move</code> handles arbitrary configured paths and field maps; <code>promote</code> and <code>demote</code> remain convenient wrappers.</p>
+      </div>
+      <div class="card">
+        <span class="icon">↕</span>
+        <h3>Sorted-file invariants</h3>
+        <p>Declare any stage sorted by date, text, or number, with null placement and deterministic tiebreakers. Every write preserves the file's order; unsorted stages are unchanged.</p>
       </div>
       <div class="card">
         <span class="icon">🖥️</span>
@@ -158,12 +164,12 @@
       <div class="card">
         <span class="icon">🔍</span>
         <h3>Search &amp; stats CLI</h3>
-        <p><code>search</code>, <code>list</code>, <code>top</code>, <code>recent</code>, and <code>stats</code> answer "who's in the pipe and what needs attention" in one line.</p>
+        <p><code>search</code>, <code>list</code>, <code>top</code>, <code>recent</code>, and <code>stats</code> cover daily reviews. <code>find</code> adds comparisons, relative date windows, and compact field projections.</p>
       </div>
       <div class="card">
         <span class="icon">✅</span>
         <h3>Validation &amp; hygiene</h3>
-        <p><code>validate</code> checks structural integrity. <code>deduplicate</code>, <code>filter-competitors</code>, and <code>merge</code> keep large intakes clean.</p>
+        <p><code>validate</code> checks identities, required and forbidden fields, types, enums, dates, and sorted order. <code>deduplicate</code>, <code>filter-competitors</code>, and <code>merge</code> keep intakes clean.</p>
       </div>
       <div class="card">
         <span class="icon">🗃️</span>
@@ -257,8 +263,169 @@ jsoncrm serve   <span class="c"># → http://127.0.0.1:7341</span></div>
   </div>
 </section>
 
+<!-- ============ configuration and invariants ============ -->
+<section class="alt" id="configuration">
+  <div class="container">
+    <h2 class="section-title">Configuration and file invariants</h2>
+    <p class="section-sub">
+      A stage with <code>sort</code> is always stored in that order. A stage without it keeps insertion order.
+      The rule belongs to the file, not to one command or one view.
+    </p>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Declare a sorted file</h3>
+        <p>Add <code>sort</code> to the stage that owns the file. This example also configures identities, validation, recent dates, and lifecycle maps:</p>
+        <div class="code-block">{
+  "identity": {"primary": "sol_id", "fallback": ["active_key"]},
+  "pipeline": {
+    "stages": [
+      {
+        "name": "active",
+        "file": "active.json",
+        "recent_key": "deadline",
+        "sort": {
+          "key": "deadline",
+          "type": "iso-date",
+          "direction": "asc",
+          "nulls": "last",
+          "tiebreak": "active_key"
+        },
+        "fields": {
+          "sol_id": {"required": true, "type": "string"},
+          "agency": {"required": true, "type": "string"},
+          "classification": {
+            "required": true,
+            "enum": ["PRIME", "SUB", "EVALUATE", "ESCALATE"]
+          },
+          "status": {"forbidden": true}
+        }
+      },
+      {
+        "name": "passive",
+        "file": "passive.json",
+        "sort": {"key": "check_at", "type": "iso-date", "tiebreak": "sol_id"}
+      },
+      {"name": "declined", "file": "declined.json"}
+    ],
+    "transitions": {
+      "active": ["passive", "submitted", "declined"],
+      "passive": ["active", "declined"]
+    },
+    "maps": {
+      "active->passive": {
+        "rename": {"deadline": "check_at"}
+      },
+      "active->submitted": {
+        "drop": ["deadline"],
+        "set": {
+          "id": "{today}-{sol_id}",
+          "submitted_at": "{today}",
+          "kind": "submitted"
+        }
+      }
+    }
+  }
+}</div>
+        <p><code>active.json</code> and <code>passive.json</code> are sorted; <code>declined.json</code> is deliberately unsorted.</p>
+      </div>
+
+      <div class="card">
+        <h3>Every operation preserves it</h3>
+        <div class="code-block"><span class="c"># validated, duplicate-safe, sorted insert</span>
+jsoncrm add --database_file active.json --item_json '{
+  "sol_id":"SOL-42", "active_key":"acme-42",
+  "agency":"Acme", "classification":"PRIME",
+  "deadline":"2026-11-12"
+}'
+
+<span class="c"># deadline changes remove and reinsert in sorted order</span>
+jsoncrm update --database_file active.json --item_json \
+  '{"sol_id":"SOL-42","deadline":"2026-11-10"}'
+
+<span class="c"># arbitrary configured transition + field map</span>
+jsoncrm move SOL-42 --from active --to passive --dry-run
+jsoncrm move SOL-42 --from active --to passive --apply
+
+<span class="c"># compact date-window query without huge notes</span>
+jsoncrm find --database_file active.json \
+  --item_json '{"deadline__within":7}' \
+  --fields sol_id agency deadline
+
+<span class="c"># audit identities, fields, dates, and sorted order</span>
+jsoncrm validate
+
+<span class="c"># uses the stage's recent_key</span>
+jsoncrm recent --stage active -n 10</div>
+        <p>
+          <code>promote</code> and <code>demote</code> remain convenience wrappers for marketing pipelines.
+          Use <code>move</code> for arbitrary stage names and multi-branch lifecycles. CLI and MCP mutations,
+          merges, pending updates, and web edits all use the same invariant-preserving writer.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-3" style="margin-top:24px">
+      <div class="card">
+        <h3>Sort contract</h3>
+        <p>
+          <code>type</code> defaults to <code>string</code>; sorting also supports <code>number</code>,
+          <code>integer</code>, <code>boolean</code>, and strict <code>YYYY-MM-DD</code> ISO dates.
+          Direction is ascending by default, nulls go last by default, and identity fields are the default tiebreakers.
+          A canonical record representation breaks remaining ties, so repeated writes are byte-stable.
+          <code>shuffle</code> is rejected for sorted stages.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Identity and field rules</h3>
+        <p>
+          Adds and moves reject duplicates using every configured identity field across the pipeline.
+          Field rules support <code>required</code>, <code>forbidden</code>, <code>enum</code>, and
+          <code>type</code> (<code>string</code>, <code>number</code>, <code>integer</code>, <code>boolean</code>,
+          <code>array</code>, <code>object</code>, <code>iso-date</code>). Arbitrary additional fields remain welcome.
+          <code>validate</code> audits the complete file; mutations reject invalid records before writing.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Queries and transition maps</h3>
+        <p>
+          <code>find</code> supports exact matches plus <code>__lt</code>, <code>__lte</code>, <code>__gt</code>,
+          <code>__gte</code>, and <code>__ne</code>. <code>__within</code> includes today through N future days.
+          <code>--fields</code> accepts space- or comma-separated projections. Maps run in
+          <code>drop</code>, <code>rename</code>, <code>set</code> order; <code>set</code> supports literal values,
+          <code>{today}</code>, and source fields such as <code>{sol_id}</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <h3>Use the same operations from Python</h3>
+      <p>
+        Automation shares the CLI implementation. Operations live in <code>jsoncrm.tool</code>, invariant helpers in
+        <code>jsoncrm.invariants</code>, and each independent <code>CRMContext</code> owns one CRM's paths and configuration:
+      </p>
+      <div class="code-block">from jsoncrm.context import CRMContext
+from jsoncrm.tool import add_record, update_record, move_record, query_records
+
+crm = CRMContext.from_file("/absolute/path/to/.crm.json")
+rows, added = add_record(
+    rows,
+    record,
+    stage=crm.stage_for_name("active"),
+    fields=crm.identity_fields,
+    existing_records=crm.other_records(crm.stage_path("active")),
+)
+crm.write_json(crm.stage_path("active"), rows)</div>
+      <p>
+        Individual files are replaced atomically. Concurrent writers are not locked, so coordinate writers or reconcile
+        their git changes. Moves validate both sides before writing, but two file replacements are not a cross-file transaction.
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ============ connect your agent ============ -->
-<section class="alt" id="mcp">
+<section id="mcp">
   <div class="container">
     <h2 class="section-title">Connect your agent</h2>
     <p class="section-sub">The MCP server speaks the same language as the CLI — same commands, same schemas, plus <code>dry_run</code> support on writes.</p>
@@ -513,6 +680,7 @@ curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/json
         <h4>Learn</h4>
         <ul>
           <li><a href="#quickstart">Quick start</a></li>
+          <li><a href="#configuration">Configuration and invariants</a></li>
           <li><a href="#mcp">Connect an agent</a></li>
           <li><a href="mcp.html">MCP setup guide</a></li>
           <li><a href="cookbook.html">Agent cookbook</a></li>

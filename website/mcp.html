@@ -51,15 +51,18 @@
 
       <h2>How the tools map to the CLI</h2>
       <p>
-        There is nothing to relearn. <code>search</code>, <code>stats</code>, <code>list</code>, <code>add</code>,
-        <code>update</code>, <code>delete</code>, <code>promote</code>, <code>demote</code>, <code>validate</code>,
-        <code>deduplicate</code>, <code>merge</code>, <code>backup</code> — every canonical command is a tool with the
-        same name. Two MCP-specific conveniences:
+        There is nothing to relearn. <code>search</code>, <code>find</code>, <code>stats</code>, <code>list</code>,
+        <code>add</code>, <code>update</code>, <code>delete</code>, <code>move</code>, <code>promote</code>,
+        <code>demote</code>, <code>validate</code>, <code>deduplicate</code>, <code>merge</code>, <code>backup</code> —
+        every canonical command is a tool with the same name. MCP and the CLI share the same configured identities,
+        sorted-file invariants, transition maps, field validation, and atomic writes. Two MCP-specific conveniences:
       </p>
       <ul>
         <li><code>item_json</code> accepts a <strong>native object</strong> — no string-encoded JSON</li>
+        <li><code>find</code> accepts comparison and date-window expressions, plus a <code>fields</code> list for compact projections</li>
         <li>Every write tool takes <code>dry_run</code> and <code>apply</code> booleans, mutually exclusive, matching the CLI's <code>--dry-run</code> / <code>--apply</code></li>
       </ul>
+      <p>See <a href="./#configuration">Configuration and file invariants</a> for sorted stages, field rules, mapped moves, and query examples.</p>
     </div>
 
     <div class="grid grid-2" style="margin-top:8px">
@@ -107,7 +110,7 @@ args = ["--config", "/absolute/path/to/.crm.json", "mcp"]</div>
       <p>Ask your agent:</p>
       <div class="code-block">"list the jsoncrm tools, then run stats on my CRM"</div>
       <p>
-        You should see the tool list (21 tools) and the per-stage counts from your pipeline files. If the agent
+        You should see the tool list (22 tools) and the per-stage counts from your pipeline files. If the agent
         can't find the tools, the config path is the usual suspect — it must be absolute.
       </p>
 
@@ -125,13 +128,16 @@ args = ["--config", "/absolute/path/to/.crm.json", "mcp"]</div>
       <p>
         The write lands, <code>git diff</code> shows exactly what changed, and the commit becomes the audit
         entry. The same preview-then-apply loop works for <code>add</code>, <code>update</code>,
-        <code>delete</code>, and <code>demote</code>.
+        <code>delete</code>, <code>move</code>, <code>promote</code>, and <code>demote</code>.
+        Sorted destinations are reinserted in invariant order; dry runs leave every file byte-identical.
       </p>
 
       <h2>Good first prompts</h2>
       <div class="code-block">"search my pipeline for anyone at TestPharma"
+"find active pursuits with deadline__within 7, projected to sol_id, agency, and deadline"
+"move SOL-42 from active to passive with a dry run, then show the mapped record"
 "show me the top 5 unscored leads, then score them with a one-line rationale each — dry run"
-"validate all pipeline files and report anything suspicious"
+"validate identities, field rules, dates, and sorted order in every pipeline file"
 "who was added to the CRM this week?"</div>
       <p>More recipes: the <a href="cookbook.html">agent cookbook</a>.</p>
 
@@ -146,7 +152,7 @@ args = ["--config", "/absolute/path/to/.crm.json", "mcp"]</div>
 
     <div class="cta-band">
       <h2>Your CRM is now an agent tool.</h2>
-      <p>Same files, same git history, now with 21 tools your agent can call.</p>
+      <p>Same files, same git history, now with 22 tools your agent can call.</p>
       <div class="hero-ctas">
         <a class="btn btn-primary" href="cookbook.html">Read the cookbook</a>
         <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>

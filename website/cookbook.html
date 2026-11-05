@@ -104,10 +104,54 @@ jsoncrm search "Acme" --company  <span class="c"># the deal you're wondering abo
       <p>Or just ask your agent: <em>"give me this week's pipeline summary — new leads, promotions, and the top 10 by score that we haven't contacted."</em></p>
 
       <h2>Recipe 5 — Hygiene day</h2>
-      <div class="code-block">jsoncrm validate               <span class="c"># structural integrity of every pipeline file</span>
+      <div class="code-block">jsoncrm validate               <span class="c"># identities, field rules, dates, and sorted order</span>
 jsoncrm backup                 <span class="c"># ZIP snapshot outside git → ~/.jsoncrm/backups/</span>
 git log --oneline --since="2 weeks ago" -- leads.json prospects.json</div>
       <p>Git history won't save you from damage to <code>.git</code> itself — the backup is the independent copy.</p>
+
+      <h2>Recipe 6 — Run a sorted pursuit ledger</h2>
+      <p>
+        Sortedness is a file-level invariant declared per stage. Start with this <code>.crm.json</code> shape;
+        <code>active.json</code> stays deadline-sorted and <code>passive.json</code> stays check-date-sorted.
+        The move renames <code>deadline</code> to <code>check_at</code> as it changes ledgers:
+      </p>
+      <div class="code-block">{
+  "identity": {"primary": "sol_id", "fallback": ["active_key"]},
+  "pipeline": {
+    "stages": [
+      {"name": "active", "file": "active.json", "recent_key": "deadline",
+       "sort": {"key": "deadline", "type": "iso-date", "nulls": "last", "tiebreak": "active_key"}},
+      {"name": "passive", "file": "passive.json",
+       "sort": {"key": "check_at", "type": "iso-date", "tiebreak": "sol_id"}}
+    ],
+    "transitions": {"active": ["passive"], "passive": ["active"]},
+    "maps": {"active->passive": {"rename": {"deadline": "check_at"}}}
+  }
+}</div>
+      <div class="code-block"><span class="c"># sorted, duplicate-safe insert; null deadlines go last</span>
+jsoncrm add --database_file active.json --item_json \
+  '{"sol_id":"SOL-42","active_key":"acme-42","deadline":"2026-11-12"}'
+
+<span class="c"># changing the sort key removes and reinserts the record</span>
+jsoncrm update --database_file active.json \
+  --item_json '{"sol_id":"SOL-42","deadline":"2026-11-10"}'
+
+<span class="c"># compact due-soon query: no giant notes field</span>
+jsoncrm find --database_file active.json \
+  --item_json '{"deadline__within":7}' \
+  --fields sol_id agency deadline
+
+<span class="c"># map and sort the move, with a preview first</span>
+jsoncrm move SOL-42 --from active --to passive --dry-run
+jsoncrm move SOL-42 --from active --to passive --apply
+
+<span class="c"># audit identities, fields, dates, and both files' order</span>
+jsoncrm validate</div>
+      <p>
+        Stages without <code>sort</code> keep insertion order. Add <code>fields</code> rules for required values,
+        enums, types, and forbidden keys, or <code>recent_key</code> to control <code>recent</code>. See
+        <a href="./#configuration">Configuration and file invariants</a> for the full reference and Python API.
+      </p>
 
       <h2>Teach your agent the house rules</h2>
       <p>

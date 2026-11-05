@@ -110,6 +110,76 @@ A typical lead looks like:
 }
 ```
 
+## Sorted and validated stages
+
+A stage without a `sort` block preserves insertion order. A stage with `sort` has a **file-level invariant**: every JSONCRM write to that file preserves the configured order, including adds, updates, merges, moves, pending updates, and web edits. The shared atomic writer enforces this invariant even when called directly. `shuffle` is rejected for sorted stages.
+
+```json
+{
+  "identity": {"primary": "sol_id", "fallback": ["active_key"]},
+  "pipeline": {
+    "stages": [
+      {
+        "name": "active",
+        "file": "active.json",
+        "recent_key": "deadline",
+        "sort": {
+          "key": "deadline",
+          "type": "iso-date",
+          "direction": "asc",
+          "nulls": "last",
+          "tiebreak": "active_key"
+        },
+        "fields": {
+          "sol_id": {"required": true, "type": "string"},
+          "active_key": {"required": true, "type": "string"},
+          "agency": {"required": true, "type": "string"},
+          "classification": {
+            "required": true,
+            "enum": ["PRIME", "SUB", "EVALUATE", "ESCALATE"]
+          },
+          "status": {"forbidden": true}
+        }
+      },
+      {
+        "name": "passive",
+        "file": "passive.json",
+        "sort": {"key": "check_at", "type": "iso-date", "tiebreak": "sol_id"}
+      }
+    ],
+    "transitions": {
+      "active": ["passive", "submitted", "declined"],
+      "passive": ["declined", "active"]
+    },
+    "maps": {
+      "active->passive": {
+        "rename": {"deadline": "check_at"}
+      },
+      "active->submitted": {
+        "drop": ["deadline"],
+        "set": {
+          "id": "{today}-{sol_id}",
+          "submitted_at": "{today}",
+          "kind": "submitted"
+        }
+      }
+    }
+  }
+}
+```
+
+Sort options:
+
+- `key` is required. `type` defaults to `string`; supported sort types are `string`, `number`, `integer`, `boolean`, and `iso-date`.
+- `direction` is `asc` by default and may be `desc`.
+- `nulls` is `last` by default and may be `first`.
+- `tiebreak` is a field name or list of field names. It defaults to the configured identity fields. A canonical record representation breaks any remaining ties, making repeated writes byte-stable.
+- ISO dates use strict `YYYY-MM-DD` form. Invalid non-null dates fail validation and writes.
+
+Field rules support `required`, `forbidden`, `enum`, and `type`. Field types are `string`, `number`, `integer`, `boolean`, `array`, `object`, and `iso-date`. Records may still have arbitrary additional fields. `recent_key` selects the date used by `recent` for that stage; it defaults to `added`.
+
+Adds and moves reject duplicates using every configured identity field across the pipeline. Updates check for new collisions when an identity value changes. URL-valued identities are normalized; other identities use exact values.
+
 ## CLI Commands
 
 ### Search & Inspect
@@ -123,22 +193,29 @@ A typical lead looks like:
 - `jsoncrm dump_emails --out emails.txt` — Dump all pipeline emails, comma separated
 
 ### CRUD
-- `jsoncrm add --database_file leads.json --item_json '{...}'`
-- `jsoncrm update --database_file leads.json --item_json '{...}'`
+- `jsoncrm add --database_file leads.json --item_json '{...}'` — Validate, reject configured-identity duplicates, and insert in invariant order
+- `jsoncrm update --database_file leads.json --item_json '{...}'` — Merge changes by configured identity and re-sort when necessary
 - `jsoncrm delete --database_file leads.json --item_json '{...}'`
 - `jsoncrm find --database_file leads.json --item_json '{"company":"Acme"}'`
+- `jsoncrm find ... --item_json '{"deadline__lte":"2026-11-30"}' --fields sol_id agency deadline`
+- `jsoncrm find ... --item_json '{"check_at__within":7}' --fields sol_id check_at`
+
+`find` supports exact equality plus `__lt`, `__lte`, `__gt`, `__gte`, and `__ne`. The `__within` operator takes a non-negative number of days and includes dates from today through that future date, inclusive. Missing and null values do not match range or window predicates. `--fields` accepts space- or comma-separated projections to keep large notes and other fields out of the output. Queries scan records; sorted storage is a correctness invariant, not a general-purpose index.
 
 ### Pipeline
+- `jsoncrm move <identity> --from active --to submitted` — Move between any configured transition, apply its field map, validate, and sort both stages
 - `jsoncrm promote <identity> --lead` — Move lead → prospect
 - `jsoncrm promote <identity> --prospect` — Move prospect → next configured stage
-  (uses `identity.primary`; override with `--identity-field`)
 - `jsoncrm demote <identity> --prospect` — Move prospect → lead
 - `jsoncrm demote <identity> --customer` — Move customer → prospect
-  (uses `identity.primary`; override with `--identity-field`)
+
+All moves use `identity.primary` unless `--identity-field` overrides it. `promote` and `demote` remain marketing-CRM convenience wrappers; use `move` for arbitrary stage names and multi-branch pipelines.
+
+Transition maps run in `drop`, `rename`, `set` order. `drop` is a list of fields to remove. `rename` maps old field names to new names and removes the old field. `set` assigns literal JSON values or strings rendered with `{today}` and source record fields such as `{sol_id}`. Missing rename sources and unknown template fields are errors.
 
 ### Write Previews
 
-`add`, `update`, `delete`, `promote`, and `demote` write immediately by default. Use `--dry-run` to run the same validation and inspect the prospective record without writing CRM or output files. Use `--apply` when you want to make the write explicit; the two flags are mutually exclusive.
+`add`, `update`, `delete`, `move`, `promote`, and `demote` write immediately by default. Use `--dry-run` to run the same validation and inspect the prospective record without writing CRM or output files. Use `--apply` when you want to make the write explicit; the two flags are mutually exclusive.
 
 ```bash
 jsoncrm update --database_file leads.json --item_json '{"linkedin_url":"https://example.com/alice","company":"NewCo"}' --dry-run
@@ -148,7 +225,7 @@ jsoncrm update --database_file leads.json --item_json '{"linkedin_url":"https://
 Dry-run JSON output includes `dry_run: true` and the prospective `record`; stage moves also include `from` and `to`. The same boolean arguments are available as `dry_run` and `apply` through MCP.
 
 ### Data Quality
-- `jsoncrm validate` — Validate all pipeline files for structural integrity
+- `jsoncrm validate` — Validate JSON structure, configured identities, field rules, date formats, and sorted order
 - `jsoncrm deduplicate intake.json` — Remove records already in pipeline
 - `jsoncrm filter-competitors intake.json` — Remove competitor matches
 - `jsoncrm merge scored.json` — Merge scored records into leads
@@ -231,14 +308,14 @@ For Claude Code user-level install (all projects), target `~/.claude/skills/json
 
 `jsoncrm serve` launches a local spreadsheet-like UI:
 
-- **Pipeline tabs** — Switch between leads, prospects, customers
-- **Inline editing** — Double-click any cell, Tab/Enter to navigate
+- **Pipeline tabs** — Switch between any configured stages
+- **Inline editing** — Double-click any cell, Tab/Enter to navigate; sorted files stay sorted
 - **Search** — Debounced server-side search across all fields
-- **Sort** — Click column headers for server-side sort
+- **Sort** — Click column headers for server-side display sorting without changing file order
 - **Pagination** — 100 rows per page (fast even with 2,000+ records)
 - **Score visualization** — Stars rendered in gold, disqualified in red
 - **Competitor warnings** — Red badge when company matches blocklist
-- **Promote/demote buttons** — Move records between stages
+- **Move buttons** — Move records through configured transitions using configured identities and field maps
 - **Dark mode** — Respects `prefers-color-scheme`
 
 ### GitHub PR Integration
@@ -285,6 +362,10 @@ git revert HEAD -- leads.json # Roll back
 
 The server writes to disk immediately, so local edits are always in sync with the filesystem. For upstream changes, use the GitHub PR flow or push directly.
 
+Individual files are replaced atomically, but concurrent writers are not locked: two processes racing to update the same file can still produce a last-writer-wins result. Coordinate writers or reconcile their git changes. A move prepares and validates both records before writing, but two separate file replacements are not a cross-file transaction.
+
+Automation uses the same implementation as the CLI: import `add_record`, `update_record`, `delete_record`, `move_record`, and `query_records` from `jsoncrm.tool`, and invariant helpers such as `sort_records` from `jsoncrm.invariants`. Create a `CRMContext` with `CRMContext.from_file(path)` and use `context.write_json(path, records)` to apply that context's stage invariants at the persistence boundary. Contexts are independent, so separate CRMs can safely coexist in one process.
+
 ## Backups
 
 Git history does not protect against damage to `.git` itself. Create an independent ZIP snapshot with:
@@ -310,9 +391,13 @@ unzip /path/to/backup.zip -d /path/to/recovered-crm
 
 | Key | Purpose |
 |-----|---------|
-| `pipeline.stages` | Stage names and file mappings |
-| `pipeline.transitions` | Valid promote paths |
-| `identity.primary` | Main ID field (e.g. `linkedin_url`) |
+| `pipeline.stages` | Stage names, file mappings, and optional per-stage rules |
+| `pipeline.stages[].sort` | Optional file-level sort invariant: key, type, direction, nulls, and tiebreakers |
+| `pipeline.stages[].fields` | Optional required, forbidden, type, and enum rules |
+| `pipeline.stages[].recent_key` | Date field used by `recent` (default: `added`) |
+| `pipeline.transitions` | Valid source-to-destination move paths |
+| `pipeline.maps` | Optional per-transition `drop`, `rename`, and `set` record transformations |
+| `identity.primary` | Main ID field (e.g. `linkedin_url` or `sol_id`) |
 | `identity.fallback` | Fallback ID fields |
 | `scores.order` | Valid score values |
 | `scores.disqualified` | Disqualified marker |
