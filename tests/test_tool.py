@@ -8,7 +8,6 @@ from types import SimpleNamespace
 import pytest
 
 
-import jsoncrm.schema as schema
 import jsoncrm.tool as tool
 from jsoncrm.utils import load_json
 
@@ -788,29 +787,11 @@ def test_cmd_validate_duplicate_identity(tmp_path, capsys):
 # --- cmd_recent ---
 
 @pytest.fixture
-def patched_pipeline(tmp_path):
-    """Temporarily point PIPELINE_FILES at tmp_path for recent/list tests."""
-    orig_dir = schema.CRM_DIR
-    orig_pipeline = tool.PIPELINE_FILES
-    orig_leads = tool.LEADS_FILE
-    orig_prospects = tool.PROSPECTS_FILE
-    orig_customers = tool.CUSTOMERS_FILE
-    schema.CRM_DIR = tmp_path
-    pipeline = [
-        ("leads", tmp_path / "leads.json"),
-        ("prospects", tmp_path / "prospects.json"),
-        ("customers", tmp_path / "customers.json"),
-    ]
-    tool.PIPELINE_FILES = pipeline
-    tool.LEADS_FILE = tmp_path / "leads.json"
-    tool.PROSPECTS_FILE = tmp_path / "prospects.json"
-    tool.CUSTOMERS_FILE = tmp_path / "customers.json"
-    yield tmp_path
-    schema.CRM_DIR = orig_dir
-    tool.PIPELINE_FILES = orig_pipeline
-    tool.LEADS_FILE = orig_leads
-    tool.PROSPECTS_FILE = orig_prospects
-    tool.CUSTOMERS_FILE = orig_customers
+def patched_pipeline(tmp_path, monkeypatch):
+    """Run recent/list tests in a real temporary CRM directory."""
+    (tmp_path / ".crm.json").write_text("{}\n")
+    monkeypatch.chdir(tmp_path)
+    return tmp_path
 
 
 def test_cmd_recent_basic(patched_pipeline, capsys):

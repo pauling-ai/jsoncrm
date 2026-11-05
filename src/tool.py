@@ -2,6 +2,7 @@
 """Unified CRM tool — command implementations and CLI entry point."""
 
 import argparse
+import copy
 import json
 import os
 import random
@@ -11,24 +12,19 @@ from pathlib import Path
 
 # Re-export everything from sub-modules so callers can import from jsoncrm.tool.
 from jsoncrm.parsers import cmd_parse_from_linkedin_mcp  # noqa: F401
-import jsoncrm.schema as schema
-from jsoncrm.schema import (
-    COMPETITORS_FILE,
-    COMPETITOR_COMPANY_KEYS,
-    COMPETITOR_PERSON_KEYS,
-    CRM_DIR,
-    CUSTOMERS_FILE,
-    JSON_DB_ENCODING,
-    LEADS_FILE,
-    PENDING_FILE,
-    PIPELINE_FILES,
-    PROSPECTS_FILE,
-    SCORE_ORDER,
-    score_value,
+from jsoncrm.context import CRMContext
+from jsoncrm.schema import COMPETITOR_COMPANY_KEYS, COMPETITOR_PERSON_KEYS, JSON_DB_ENCODING, score_value
+from jsoncrm.invariants import (
+    RecordError,
+    ensure_unique,
+    ensure_valid_record,
+    identity_matches,
+    record_errors,
+    require_identity,
+    sort_records,
 )
 from jsoncrm.utils import (
     apply_updates,
-    atomic_write_json,
     build_known_urls,
     coerce,
     find_record,
@@ -38,7 +34,6 @@ from jsoncrm.utils import (
     normalize_company_name,
     normalize_url,
     print_record,
-    record_identity_value,
     search_competitors,
 )
 
@@ -61,9 +56,21 @@ def _jout(data):
     return False
 
 
-def load_all():
+def _context(args):
+    context = getattr(args, "crm_context", None)
+    if context is None:
+        context = CRMContext.from_file(getattr(args, "config", None))
+        args.crm_context = context
+    return context
+
+
+def _write_json(args, path, data):
+    _context(args).write_json(path, data)
+
+
+def load_all(args):
     records = []
-    for stage, path in PIPELINE_FILES:
+    for stage, path in _context(args).pipeline_files:
         if path.exists():
             data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
             for r in data:
@@ -92,13 +99,19 @@ def _load_item_dict(args, command_name):
     return item
 
 
-def _require_identity(item, command_name):
-    """Ensure item has an identity field."""
-    identity_field, identity_value = record_identity_value(item)
-    if not identity_field:
-        print(f"Error: {command_name} requires at least one of 'id' or 'linkedin_url'")
-        sys.exit(1)
-    return identity_field, identity_value
+def _identity_fields(args):
+    return _context(args).identity_fields
+
+
+def _other_pipeline_records(args, database_path):
+    return _context(args).other_records(database_path)
+
+
+def _exit_record_error(command, error):
+    message = str(error)
+    prefix = f"{command} " if message.startswith("requires") else ""
+    print(f"Error: {prefix}{message}")
+    sys.exit(1)
 
 
 def _load_records(database_path):
@@ -110,12 +123,193 @@ def _load_records(database_path):
     return records
 
 
+def add_record(records, item, *, stage, fields, existing_records=None):
+    require_identity(item, fields)
+    ensure_valid_record(item, stage)
+    ensure_unique(item, [*records, *(existing_records or [])], fields)
+    added = copy.deepcopy(item)
+    updated = sort_records([*records, added], stage, fields)
+    return updated, added
+
+
+def update_record(records, updates, *, stage, fields, existing_records=None):
+    field, value = require_identity(updates, fields)
+    matches = [index for index, record in enumerate(records) if identity_matches(record, field, value)]
+    if not matches:
+        from jsoncrm.invariants import RecordNotFoundError
+        raise RecordNotFoundError(f"no record found for {field} '{value}'")
+    if len(matches) > 1:
+        from jsoncrm.invariants import RecordValidationError
+        raise RecordValidationError(f"multiple records found for {field} '{value}'")
+
+    index = matches[0]
+    original = records[index]
+    updated = copy.deepcopy(original)
+    unknown = [key for key in updates if key not in updated and key != field]
+    updated.update(copy.deepcopy(updates))
+    require_identity(updated, fields)
+    ensure_valid_record(updated, stage)
+    remaining = [record for i, record in enumerate(records) if i != index]
+    identity_changed = any(
+        key in updates and original.get(key) != updated.get(key)
+        for key in fields
+    )
+    if identity_changed:
+        ensure_unique(updated, [*remaining, *(existing_records or [])], fields)
+    if stage and stage.get("sort"):
+        return sort_records([*remaining, updated], stage, fields), updated, unknown
+    updated_records = list(records)
+    updated_records[index] = updated
+    return updated_records, updated, unknown
+
+
+def delete_record(records, identity, *, fields):
+    from jsoncrm.invariants import RecordNotFoundError, RecordValidationError
+
+    field, value = require_identity(identity, fields)
+    matches = [index for index, record in enumerate(records) if identity_matches(record, field, value)]
+    if not matches:
+        raise RecordNotFoundError(f"no record found for {field} '{value}'")
+    if len(matches) > 1:
+        raise RecordValidationError(f"multiple records found for {field} '{value}'")
+    index = matches[0]
+    return [record for i, record in enumerate(records) if i != index], records[index]
+
+
+def _render_template(value, context):
+    from jsoncrm.invariants import RecordValidationError
+
+    if not isinstance(value, str):
+        return copy.deepcopy(value)
+    try:
+        return value.format_map(context)
+    except (KeyError, ValueError) as exc:
+        raise RecordValidationError(f"invalid transition value template {value!r}: {exc}") from exc
+
+
+def apply_transition_map(record, mapping, *, today=None):
+    from jsoncrm.invariants import RecordValidationError
+
+    mapped = copy.deepcopy(record)
+    if not mapping:
+        return mapped
+    unknown = set(mapping) - {"drop", "rename", "set"}
+    if unknown:
+        raise RecordValidationError(f"unknown transition map operation(s): {', '.join(sorted(unknown))}")
+
+    for field in mapping.get("drop", []):
+        mapped.pop(field, None)
+    for source, destination in mapping.get("rename", {}).items():
+        if source not in mapped:
+            raise RecordValidationError(f"cannot rename missing field '{source}'")
+        mapped[destination] = mapped.pop(source)
+
+    context = {**record, **mapped, "today": (today or date.today()).isoformat()}
+    for field, value in mapping.get("set", {}).items():
+        mapped[field] = _render_template(value, context)
+    return mapped
+
+
+def move_record(
+    source_records,
+    destination_records,
+    *,
+    identity_field,
+    identity_value,
+    source_stage,
+    destination_stage,
+    fields,
+    transition_map=None,
+    existing_records=None,
+    today=None,
+):
+    from jsoncrm.invariants import RecordNotFoundError, RecordValidationError
+
+    matches = [
+        index for index, record in enumerate(source_records)
+        if identity_matches(record, identity_field, identity_value)
+    ]
+    if not matches:
+        raise RecordNotFoundError(f"no record found for {identity_field} '{identity_value}'")
+    if len(matches) > 1:
+        raise RecordValidationError(f"multiple records found for {identity_field} '{identity_value}'")
+
+    index = matches[0]
+    moved = apply_transition_map(source_records[index], transition_map, today=today)
+    require_identity(moved, fields)
+    ensure_valid_record(moved, destination_stage)
+    ensure_unique(moved, [*destination_records, *(existing_records or [])], fields)
+    remaining = [record for i, record in enumerate(source_records) if i != index]
+    return (
+        sort_records(remaining, source_stage, fields),
+        sort_records([*destination_records, moved], destination_stage, fields),
+        moved,
+    )
+
+
+def _within(value, days, today):
+    from jsoncrm.invariants import RecordValidationError, _parse_iso_date
+
+    parsed = _parse_iso_date(value)
+    if parsed is None or isinstance(days, bool):
+        return False
+    try:
+        days = int(days)
+    except (TypeError, ValueError):
+        return False
+    if days < 0:
+        raise RecordValidationError("within window must be a non-negative number of days")
+    return today <= parsed <= date.fromordinal(today.toordinal() + days)
+
+
+def record_matches(record, matcher, *, today=None):
+    from jsoncrm.invariants import RecordValidationError
+
+    operators = {
+        "lt": lambda a, b: a < b,
+        "lte": lambda a, b: a <= b,
+        "gt": lambda a, b: a > b,
+        "gte": lambda a, b: a >= b,
+        "ne": lambda a, b: a != b,
+    }
+    for expression, expected in matcher.items():
+        field, separator, operator = expression.rpartition("__")
+        if not separator:
+            field, operator = expression, "eq"
+        if operator == "within":
+            if not _within(record.get(field), expected, today or date.today()):
+                return False
+            continue
+        if operator not in {"eq", *operators}:
+            raise RecordValidationError(f"unknown query operator '{operator}'")
+        actual = record.get(field)
+        if operator == "eq":
+            if actual != expected:
+                return False
+            continue
+        if actual is None and operator != "ne":
+            return False
+        try:
+            if not operators[operator](actual, expected):
+                return False
+        except TypeError:
+            return False
+    return True
+
+
+def query_records(records, matcher, *, projection=None, today=None):
+    results = [record for record in records if record_matches(record, matcher, today=today)]
+    if projection is None:
+        return results
+    return [{field: record.get(field) for field in projection} for record in results]
+
+
 def cmd_search(args):
     comp_hits = []
     if args.competitor:
-        comp_hits = search_competitors(args.query, person=args.person, company=args.company)
+        comp_hits = search_competitors(args.query, person=args.person, company=args.company, context=_context(args))
 
-    records = load_all()
+    records = load_all(args)
     hits = [(stage, r) for stage, r in records
             if match(r, args.query, person=args.person, company=args.company)]
 
@@ -157,14 +351,13 @@ def cmd_find(args):
 
     matcher = _load_item_dict(args, "find")
     records = _load_records(database_path)
-
-    def matches(record):
-        for key, value in matcher.items():
-            if record.get(key) != value:
-                return False
-        return True
-
-    results = [record for record in records if matches(record)]
+    projection = getattr(args, "fields", None)
+    if projection:
+        projection = [field.strip() for item in projection for field in item.split(",") if field.strip()]
+    try:
+        results = query_records(records, matcher, projection=projection)
+    except RecordError as exc:
+        _exit_record_error("find", exc)
     output = json.dumps(results, indent=2, ensure_ascii=False)
     if args.output_file:
         Path(args.output_file).write_text(output + "\n", encoding=JSON_DB_ENCODING)
@@ -183,8 +376,7 @@ def _output_record_result(args, record, dry_run):
 
 def _valid_scores(args):
     """Return (set of valid score values, human-readable description) from config."""
-    from jsoncrm.config import Config
-    cfg = Config.from_file(getattr(args, "config", None))
+    cfg = _context(args).config
     valid = set(cfg.score_order) | {cfg.disqualified_score}
     description = ", ".join(repr(s) for s in cfg.score_order_descending + [cfg.disqualified_score])
     return valid, description
@@ -193,7 +385,6 @@ def _valid_scores(args):
 def cmd_add(args):
     database_path = Path(args.database_file)
     item = _load_item_dict(args, "add")
-    _require_identity(item, "add")
 
     valid_scores, valid_description = _valid_scores(args)
     score = item.get("score")
@@ -202,17 +393,21 @@ def cmd_add(args):
         sys.exit(1)
 
     records = _load_records(database_path)
+    try:
+        records, added = add_record(
+            records,
+            item,
+            stage=_context(args).stage_for_path(database_path),
+            fields=_identity_fields(args),
+            existing_records=_other_pipeline_records(args, database_path),
+        )
+    except RecordError as exc:
+        _exit_record_error("add", exc)
 
-    url = normalize_url(item.get("linkedin_url"))
-    if url and url in build_known_urls():
-        print(f"Error: record with URL '{url}' already exists in the pipeline")
-        sys.exit(1)
-
-    records.append(item)
     dry_run = getattr(args, "dry_run", False)
     if not dry_run:
-        atomic_write_json(database_path, records)
-    _output_record_result(args, item, dry_run)
+        _write_json(args, database_path, records)
+    _output_record_result(args, added, dry_run)
 
 
 def cmd_delete(args):
@@ -222,28 +417,15 @@ def cmd_delete(args):
         sys.exit(1)
 
     item = _load_item_dict(args, "delete")
-    identity_field, identity_value = _require_identity(item, "delete")
-
-    records = load_json(database_path)
-    if not isinstance(records, list):
-        print("Error: database file must be a JSON array")
-        sys.exit(1)
-
-    kept = []
-    deleted = None
-    for record in records:
-        if deleted is None and record.get(identity_field) == identity_value:
-            deleted = record
-        else:
-            kept.append(record)
-
-    if deleted is None:
-        print(f"Error: no record found for {identity_field} '{identity_value}'")
-        sys.exit(1)
+    records = _load_records(database_path)
+    try:
+        kept, deleted = delete_record(records, item, fields=_identity_fields(args))
+    except RecordError as exc:
+        _exit_record_error("delete", exc)
 
     dry_run = getattr(args, "dry_run", False)
     if not dry_run:
-        atomic_write_json(database_path, kept)
+        _write_json(args, database_path, kept)
     _output_record_result(args, deleted, dry_run)
 
 
@@ -254,35 +436,28 @@ def cmd_update(args):
         sys.exit(1)
 
     item = _load_item_dict(args, "update")
-    identity_field, identity_value = _require_identity(item, "update")
+    records = _load_records(database_path)
+    try:
+        records, updated, unknown = update_record(
+            records,
+            item,
+            stage=_context(args).stage_for_path(database_path),
+            fields=_identity_fields(args),
+            existing_records=_other_pipeline_records(args, database_path),
+        )
+    except RecordError as exc:
+        _exit_record_error("update", exc)
 
-    records = load_json(database_path)
-    if not isinstance(records, list):
-        print("Error: database file must be a JSON array")
-        sys.exit(1)
-
-    updated = None
-    for record in records:
-        if record.get(identity_field) == identity_value:
-            unknown = [k for k in item if k not in record and k not in (identity_field,)]
-            if unknown:
-                print(f"Warning: updating unknown field(s): {', '.join(unknown)}")
-            record.update(item)
-            updated = record
-            break
-
-    if updated is None:
-        print(f"Error: no record found for {identity_field} '{identity_value}'")
-        sys.exit(1)
-
+    if unknown:
+        print(f"Warning: updating unknown field(s): {', '.join(unknown)}")
     dry_run = getattr(args, "dry_run", False)
     if not dry_run:
-        atomic_write_json(database_path, records)
+        _write_json(args, database_path, records)
     _output_record_result(args, updated, dry_run)
 
 
 def cmd_apply_update(args):
-    pending_path = Path(args.pending_file) if args.pending_file != "default" else PENDING_FILE
+    pending_path = Path(args.pending_file) if args.pending_file != "default" else _context(args).pending_file
     if not pending_path.exists():
         print(f"Error: no pending update file at {pending_path}")
         sys.exit(1)
@@ -296,7 +471,7 @@ def cmd_apply_update(args):
         print("Error: pending file has no 'fields'")
         sys.exit(1)
     target_file = payload.get("target_file")
-    apply_updates(target_url, updates, target_file=target_file)
+    apply_updates(target_url, updates, target_file=target_file, context=_context(args))
     pending_path.unlink()
 
 
@@ -304,6 +479,10 @@ def cmd_shuffle(args):
     path = Path(args.file)
     if not path.exists():
         print(f"Error: {path} not found")
+        sys.exit(1)
+    stage = _context(args).stage_for_path(path)
+    if stage and stage.get("sort"):
+        print(f"Error: cannot shuffle sorted stage '{stage['name']}'")
         sys.exit(1)
 
     data = load_json(path)
@@ -319,7 +498,7 @@ def cmd_shuffle(args):
         print("\n(dry run — no files modified)")
         return
 
-    atomic_write_json(path, data)
+    _write_json(args, path, data)
     print(f"Shuffled {len(data)} records in {path.name}.")
 
 
@@ -340,13 +519,13 @@ def cmd_intake(args):
         sys.exit(1)
 
     r = unscored[0]
-    output_path = Path(args.output) if args.output else PENDING_FILE
+    output_path = Path(args.output) if args.output else _context(args).pending_file
     pending = {
         "linkedin_url": r.get("linkedin_url"),
         "target_file": str(path),
         "fields": {},
     }
-    atomic_write_json(output_path, pending)
+    _write_json(args, output_path, pending)
 
     if _jout({"record": r, "remaining": len(unscored), "pending_file": str(output_path)}):
         return
@@ -363,7 +542,7 @@ def cmd_intake(args):
 
 
 def cmd_top(args):
-    path = Path(args.file) if args.file else LEADS_FILE
+    path = Path(args.file) if args.file else _context(args).leads_file
     if not path.exists():
         print(f"Error: {path} not found")
         sys.exit(1)
@@ -389,11 +568,11 @@ def cmd_top(args):
                     continue
             elif next_up > today:
                 continue
-        if args.min_score and score_value(score) < score_value(args.min_score):
+        if args.min_score and _context(args).score_value(score) < _context(args).score_value(args.min_score):
             continue
         results.append(r)
 
-    results.sort(key=lambda r: score_value(r.get("score")), reverse=True)
+    results.sort(key=lambda r: _context(args).score_value(r.get("score")), reverse=True)
     results = results[:args.num]
 
     if not results:
@@ -413,7 +592,7 @@ def cmd_top(args):
                 "target_file": str(path),
                 "fields": {},
             }
-            atomic_write_json(output_path, pending)
+            _write_json(args, output_path, pending)
         return
 
     print(json.dumps(results, indent=2, ensure_ascii=False))
@@ -431,7 +610,7 @@ def cmd_top(args):
             "target_file": str(path),
             "fields": {},
         }
-        atomic_write_json(output_path, pending)
+        _write_json(args, output_path, pending)
         print(
             f"Wrote {output_path} — fill in fields, then run: jsoncrm apply_update {output_path}",
             file=sys.stderr,
@@ -440,7 +619,7 @@ def cmd_top(args):
 
 def cmd_merge(args):
     source_path = Path(args.file)
-    leads_path = Path(args.leads_file) if args.leads_file else LEADS_FILE
+    leads_path = Path(args.leads_file) if args.leads_file else _context(args).leads_file
 
     if not source_path.exists():
         print(f"Error: {source_path} not found")
@@ -458,9 +637,9 @@ def cmd_merge(args):
     scored = [r for r in scored if r.get("score") in valid_scores]
 
     if args.leads_file:
-        known_urls = build_known_urls(leads_file=leads_path)
+        known_urls = build_known_urls(leads_file=leads_path, context=_context(args))
     else:
-        known_urls = build_known_urls()
+        known_urls = build_known_urls(context=_context(args))
 
     existing_leads = load_json(leads_path)
 
@@ -491,9 +670,9 @@ def cmd_merge(args):
         if not args.dry_run:
             if added:
                 merged = existing_leads + added
-                atomic_write_json(leads_path, merged)
+                _write_json(args, leads_path, merged)
             if remaining != source_records:
-                atomic_write_json(source_path, remaining)
+                _write_json(args, source_path, remaining)
         if invalid:
             sys.exit(1)
         return
@@ -529,18 +708,18 @@ def cmd_merge(args):
     if not added and not scored:
         print("\nNothing to do.")
         if remaining != source_records:
-            atomic_write_json(source_path, remaining)
+            _write_json(args, source_path, remaining)
         if invalid:
             sys.exit(1)
         return
 
     if added:
         merged = existing_leads + added
-        atomic_write_json(leads_path, merged)
+        _write_json(args, leads_path, merged)
         print(f"\nWrote {len(merged)} records to {leads_path}")
 
     if remaining != source_records:
-        atomic_write_json(source_path, remaining)
+        _write_json(args, source_path, remaining)
         print(f"Updated {source_path.name}: {len(remaining)} unscored/invalid record(s) remaining")
     else:
         print(f"No changes to {source_path.name}")
@@ -564,6 +743,7 @@ def cmd_deduplicate(args):
         leads_file=args.leads_file,
         prospects_file=args.prospects_file,
         customers_file=args.customers_file,
+        context=_context(args),
     )
 
     kept = []
@@ -582,7 +762,7 @@ def cmd_deduplicate(args):
         "dry_run": args.dry_run,
     }):
         if not args.dry_run and kept != source_records:
-            atomic_write_json(source_path, kept)
+            _write_json(args, source_path, kept)
         return
 
     print(f"Source:   {len(source_records)} records")
@@ -599,7 +779,7 @@ def cmd_deduplicate(args):
         return
 
     if kept != source_records:
-        atomic_write_json(source_path, kept)
+        _write_json(args, source_path, kept)
         print(f"Updated {source_path.name}: {len(kept)} records remaining")
     else:
         print(f"No changes to {source_path.name}")
@@ -615,11 +795,11 @@ def cmd_filter_competitors(args):
     if not isinstance(source_records, list):
         print("Error: source file must be a JSON array")
         sys.exit(1)
-    if not COMPETITORS_FILE.exists():
-        print(f"Error: {COMPETITORS_FILE} not found")
+    if not _context(args).competitors_file.exists():
+        print(f"Error: {_context(args).competitors_file} not found")
         sys.exit(1)
 
-    competitors = load_json(COMPETITORS_FILE)
+    competitors = load_json(_context(args).competitors_file)
     if not isinstance(competitors, dict):
         print("Error: competitors file must be a JSON object")
         sys.exit(1)
@@ -652,7 +832,7 @@ def cmd_filter_competitors(args):
         "dry_run": args.dry_run,
     }):
         if not args.dry_run and kept != source_records:
-            atomic_write_json(source_path, kept)
+            _write_json(args, source_path, kept)
         return
 
     print(f"Source:   {len(source_records)} records")
@@ -669,103 +849,107 @@ def cmd_filter_competitors(args):
         return
 
     if kept != source_records:
-        atomic_write_json(source_path, kept)
+        _write_json(args, source_path, kept)
         print(f"Updated {source_path.name}: {len(kept)} records remaining")
     else:
         print(f"No changes to {source_path.name}")
 
 
-PROMOTE_MAP = {
-    "lead": ("leads.json", "prospects.json"),
-    "prospect": ("prospects.json", "customers.json"),
-}
-IDENTITY_PRIMARY = "linkedin_url"
-
-
-def _build_promote_map(config):
-    """Build PROMOTE_MAP from config transitions."""
-    transitions = config.pipeline_transitions
-    result = {}
-    stage_files = {s["name"]: CRM_DIR / s["file"] for s in config.pipeline_stages}
-    for from_stage, to_stages in transitions.items():
-        if to_stages:
-            key = from_stage[:-1] if from_stage.endswith("s") else from_stage
-            to_stage = to_stages[0]
-            result[key] = (
-                stage_files.get(from_stage, CRM_DIR / f"{from_stage}.json").name,
-                stage_files.get(to_stage, CRM_DIR / f"{to_stage}.json").name,
-            )
-    return result
-
-
-def _identity_matches(record, field, value):
-    """Compare configured identities, normalizing URL identities when appropriate."""
-    if field.endswith("_url"):
-        return normalize_url(record.get(field, "")) == normalize_url(value)
-    return record.get(field) == value
-
-
-def cmd_promote(args):
-    if args.lead:
-        stage = "lead"
-    else:
-        stage = "prospect"
-
-    src_name, dst_name = PROMOTE_MAP[stage]
-    src_path = Path(args.from_file) if args.from_file else CRM_DIR / src_name
-    dst_path = Path(args.to_file) if args.to_file else CRM_DIR / dst_name
-
+def _move_between(args, src_path, dst_path, action, *, enforce_transition=False):
     if not src_path.exists():
         print(f"Error: {src_path} not found")
         sys.exit(1)
 
-    src_data = load_json(src_path)
-    dst_data = load_json(dst_path)
+    cfg = _context(args).config
+    fields = _context(args).identity_fields
+    source_stage = _context(args).stage_for_path(src_path)
+    destination_stage = _context(args).stage_for_path(dst_path)
+    source_name = source_stage["name"] if source_stage else None
+    destination_name = destination_stage["name"] if destination_stage else None
+    if enforce_transition:
+        destinations = cfg.pipeline_transitions.get(source_name, [])
+        if destination_name not in destinations:
+            print(f"Error: transition '{source_name}->{destination_name}' is not configured")
+            sys.exit(1)
+
+    excluded = {src_path.resolve(), dst_path.resolve()}
+    existing_records = []
+    for _stage, path in _context(args).pipeline_files:
+        if path.resolve() not in excluded and path.exists():
+            data = load_json(path)
+            if isinstance(data, list):
+                existing_records.extend(data)
 
     identity_value = getattr(args, "identity_value", None) or getattr(args, "linkedin_url", None)
-    identity_field = getattr(args, "identity_field", None) or IDENTITY_PRIMARY
-    record = None
-    remaining = []
-    for r in src_data:
-        if _identity_matches(r, identity_field, identity_value):
-            record = r
-        else:
-            remaining.append(r)
+    identity_field = getattr(args, "identity_field", None) or cfg.identity_primary
+    try:
+        remaining, destination, record = move_record(
+            _load_records(src_path),
+            _load_records(dst_path),
+            identity_field=identity_field,
+            identity_value=identity_value,
+            source_stage=source_stage,
+            destination_stage=destination_stage,
+            fields=fields,
+            transition_map=cfg.transition_map(source_name, destination_name),
+            existing_records=existing_records,
+        )
+    except RecordError as exc:
+        _exit_record_error(action, exc)
 
-    if record is None:
-        print(f"Error: no record found for {identity_field} '{identity_value}' in {src_path.name}")
-        sys.exit(1)
-
-    dst_data.append(record)
     dry_run = getattr(args, "dry_run", False)
     if not dry_run:
-        atomic_write_json(src_path, remaining)
-        atomic_write_json(dst_path, dst_data)
+        _write_json(args, dst_path, destination)
+        _write_json(args, src_path, remaining)
 
     name = record.get("name", identity_value)
+    completed_action = "moved" if action == "move" else f"{action}d"
     if dry_run:
         if _jout({
-            "action": "promote", "dry_run": True, "record": record,
+            "action": action, "dry_run": True, "record": record,
             "from": src_path.name, "to": dst_path.name,
         }):
             return
-        print(f"Dry run: would promote {name}  {src_path.name} → {dst_path.name}")
+        print(f"Dry run: would {action} {name}  {src_path.name} → {dst_path.name}")
         return
-    if _jout({"action": "promoted", "record": record, "from": src_path.name, "to": dst_path.name}):
+    if _jout({"action": completed_action, "record": record, "from": src_path.name, "to": dst_path.name}):
         return
-    print(f"Promoted: {name}  {src_path.name} → {dst_path.name}")
+    print(f"{completed_action.capitalize()}: {name}  {src_path.name} → {dst_path.name}")
+
+
+def cmd_move(args):
+    context = _context(args)
+    if not context.stage_for_name(args.from_stage) or not context.stage_for_name(args.to_stage):
+        print("Error: both --from and --to must name configured stages")
+        sys.exit(1)
+    _move_between(
+        args,
+        context.stage_path(args.from_stage),
+        context.stage_path(args.to_stage),
+        "move",
+        enforce_transition=True,
+    )
+
+
+def cmd_promote(args):
+    context = _context(args)
+    stage = "lead" if args.lead else "prospect"
+    src_name, dst_name = context.promote_map()[stage]
+    src_path = Path(args.from_file) if args.from_file else context.root / src_name
+    dst_path = Path(args.to_file) if args.to_file else context.root / dst_name
+    _move_between(args, src_path, dst_path, "promote")
 
 
 def cmd_stats(args):
     # Use explicit overrides if provided, otherwise fall back to config-driven pipeline
     if args.leads_file or args.prospects_file or args.customers_file:
         pipeline = [
-            ("leads", Path(args.leads_file) if args.leads_file else LEADS_FILE),
-            ("prospects", Path(args.prospects_file) if args.prospects_file else PROSPECTS_FILE),
-            ("customers", Path(args.customers_file) if args.customers_file else CUSTOMERS_FILE),
+            ("leads", Path(args.leads_file) if args.leads_file else _context(args).leads_file),
+            ("prospects", Path(args.prospects_file) if args.prospects_file else _context(args).prospects_file),
+            ("customers", Path(args.customers_file) if args.customers_file else _context(args).customers_file),
         ]
     else:
-        pipeline = [(name, path) for name, path in PIPELINE_FILES]
+        pipeline = [(name, path) for name, path in _context(args).pipeline_files]
 
     report = {}
     for stage, path in pipeline:
@@ -835,81 +1019,92 @@ def cmd_stats(args):
 
 
 def cmd_validate(args):
-    """Validate all pipeline JSON files for structural integrity."""
-    from jsoncrm.config import Config
-    cfg = Config.from_file(args.config)
-    schema.apply_config(cfg)
+    """Validate structure, configured identities, fields, and sorted order."""
+    cfg = _context(args).config
 
-    # Use explicit overrides if provided, otherwise fall back to config-driven pipeline
     if args.leads_file or args.prospects_file or args.customers_file:
         pipeline = [
-            ("leads", Path(args.leads_file) if args.leads_file else LEADS_FILE),
-            ("prospects", Path(args.prospects_file) if args.prospects_file else PROSPECTS_FILE),
-            ("customers", Path(args.customers_file) if args.customers_file else CUSTOMERS_FILE),
+            ("leads", Path(args.leads_file) if args.leads_file else _context(args).leads_file),
+            ("prospects", Path(args.prospects_file) if args.prospects_file else _context(args).prospects_file),
+            ("customers", Path(args.customers_file) if args.customers_file else _context(args).customers_file),
         ]
     else:
-        pipeline = [(name, path) for name, path in PIPELINE_FILES]
+        pipeline = [(name, path) for name, path in _context(args).pipeline_files]
     errors = []
     warnings_list = []
     summary = {}
-
-    primary = cfg.identity_primary
-    fallback = cfg.identity_fallback
+    fields = _context(args).identity_fields
     valid_scores = set(cfg.score_order) | {cfg.disqualified_score}
+    seen_identities = {}
+
+    def add_error(stage, path, message, index=None):
+        nonlocal errors
+        entry = {"stage": stage, "file": str(path), "error": message}
+        if index is not None:
+            entry["record"] = index
+        errors.append(entry)
+        return f"record {index} {message}" if index is not None else message
 
     for stage, path in pipeline:
         stage_errors = []
         stage_warnings = []
-        record_count = 0
+        stage_config = _context(args).stage_for_path(path) or _context(args).stage_for_name(stage)
 
         if not path.exists():
-            stage_errors.append(f"file not found")
-            errors.append({"stage": stage, "file": str(path), "error": "file not found"})
+            stage_errors.append(add_error(stage, path, "file not found"))
             summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
             continue
 
         try:
             data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
         except json.JSONDecodeError as e:
-            stage_errors.append(f"invalid JSON: {e}")
-            errors.append({"stage": stage, "file": str(path), "error": f"invalid JSON: {e}"})
+            stage_errors.append(add_error(stage, path, f"invalid JSON: {e}"))
             summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
             continue
 
         if not isinstance(data, list):
-            stage_errors.append("file must be a JSON array")
-            errors.append({"stage": stage, "file": str(path), "error": "file must be a JSON array"})
+            stage_errors.append(add_error(stage, path, "file must be a JSON array"))
             summary[stage] = {"valid": False, "records": 0, "errors": 1, "warnings": 0}
             continue
 
-        record_count = len(data)
-        seen = {}
         for idx, record in enumerate(data):
             if not isinstance(record, dict):
-                stage_errors.append(f"record {idx} is not an object")
-                errors.append({"stage": stage, "file": str(path), "record": idx, "error": "not an object"})
+                stage_errors.append(add_error(stage, path, "not an object", idx))
                 continue
 
-            identity = record.get(primary) or (record.get(fallback[0]) if fallback else None)
-            if not identity:
-                stage_errors.append(f"record {idx} missing identity field ({primary} or {', '.join(fallback)})")
-                errors.append({"stage": stage, "file": str(path), "record": idx, "error": f"missing identity ({primary} or {', '.join(fallback)})"})
-            else:
-                key = normalize_url(identity) if primary == "linkedin_url" else str(identity)
-                if key in seen:
-                    stage_errors.append(f"record {idx} duplicate identity '{identity}' (first at {seen[key]})")
-                    errors.append({"stage": stage, "file": str(path), "record": idx, "error": f"duplicate identity '{identity}'"})
+            present = [(field, record.get(field)) for field in fields if record.get(field) not in (None, "")]
+            if not present:
+                stage_errors.append(add_error(stage, path, f"missing identity ({' or '.join(fields)})", idx))
+            for field, value in present:
+                normalized = normalize_url(value) if field.endswith("_url") else str(value)
+                key = (field, normalized)
+                if key in seen_identities:
+                    first_stage, first_index = seen_identities[key]
+                    message = f"duplicate {field} '{value}' (first at {first_stage} record {first_index})"
+                    stage_errors.append(add_error(stage, path, message, idx))
                 else:
-                    seen[key] = idx
+                    seen_identities[key] = (stage, idx)
+
+            for message in record_errors(record, stage_config):
+                stage_errors.append(add_error(stage, path, message, idx))
 
             score = record.get("score")
             if score is not None and score not in valid_scores:
-                stage_warnings.append(f"record {idx} has unknown score '{score}'")
-                warnings_list.append({"stage": stage, "file": str(path), "record": idx, "warning": f"unknown score '{score}'"})
+                message = f"unknown score '{score}'"
+                stage_warnings.append(f"record {idx} has {message}")
+                warnings_list.append({"stage": stage, "file": str(path), "record": idx, "warning": message})
+
+        if stage_config and stage_config.get("sort") and all(isinstance(record, dict) for record in data):
+            try:
+                if sort_records(data, stage_config, fields) != data:
+                    sort = stage_config["sort"]
+                    stage_errors.append(add_error(stage, path, f"records are not sorted by '{sort['key']}'"))
+            except RecordError as exc:
+                stage_errors.append(add_error(stage, path, str(exc)))
 
         summary[stage] = {
             "valid": len(stage_errors) == 0,
-            "records": record_count,
+            "records": len(data),
             "errors": len(stage_errors),
             "warnings": len(stage_warnings),
         }
@@ -957,99 +1152,53 @@ def cmd_recent(args):
     """Show the most recently added records across the pipeline."""
     if args.leads_file or args.prospects_file or args.customers_file:
         pipeline = [
-            ("leads", Path(args.leads_file) if args.leads_file else LEADS_FILE),
-            ("prospects", Path(args.prospects_file) if args.prospects_file else PROSPECTS_FILE),
-            ("customers", Path(args.customers_file) if args.customers_file else CUSTOMERS_FILE),
+            ("leads", Path(args.leads_file) if args.leads_file else _context(args).leads_file),
+            ("prospects", Path(args.prospects_file) if args.prospects_file else _context(args).prospects_file),
+            ("customers", Path(args.customers_file) if args.customers_file else _context(args).customers_file),
         ]
     else:
-        pipeline = [(name, path) for name, path in PIPELINE_FILES]
+        pipeline = [(name, path) for name, path in _context(args).pipeline_files]
+
     all_records = []
     for stage, path in pipeline:
         if not path.exists():
             continue
+        stage_config = _context(args).stage_for_path(path) or _context(args).stage_for_name(stage) or {}
+        recent_key = _context(args).config.stage_recent_key(stage_config)
         for r in load_json(path):
             if isinstance(r, dict):
-                all_records.append({"stage": stage, "file": str(path), **r})
+                entry = {"stage": stage, "file": str(path), **r}
+                all_records.append((r.get(recent_key) or "", entry))
 
     if args.stage:
-        all_records = [r for r in all_records if r["stage"] == args.stage]
+        all_records = [item for item in all_records if item[1]["stage"] == args.stage]
 
-    # Sort by 'added' descending; records without 'added' go to the bottom
-    def _added_key(r):
-        return r.get("added") or ""
-
-    all_records.sort(key=_added_key, reverse=True)
+    all_records.sort(key=lambda item: item[0], reverse=True)
     results = all_records[:args.num]
 
-    if _jout(results):
+    if _jout([record for _recent_date, record in results]):
         return
 
     if not results:
         print("No records found.")
         return
 
-    for r in results:
-        added = r.get("added") or "—"
-        print(f"[{r['stage'].upper()}] {added}  {r.get('name')}  —  {r.get('company')}  ({r.get('linkedin_url')})")
+    for recent_date, r in results:
+        print(f"[{r['stage'].upper()}] {recent_date or '—'}  {r.get('name')}  —  {r.get('company')}  ({r.get('linkedin_url')})")
 
 
 def cmd_demote(args):
     """Move a record back one pipeline stage (reverse of promote)."""
-    if args.customer:
-        stage = "customer"
-    else:
-        stage = "prospect"
-
-    # Reverse PROMOTE_MAP
-    reverse_map = {v[1]: (v[1], v[0]) for v in PROMOTE_MAP.values()}
-    # Also map by stage name
+    context = _context(args)
+    promote_map = context.promote_map()
+    stage = "customer" if args.customer else "prospect"
     if stage == "customer":
-        src_name, dst_name = PROMOTE_MAP["prospect"][1], PROMOTE_MAP["prospect"][0]
+        src_name, dst_name = promote_map["prospect"][1], promote_map["prospect"][0]
     else:
-        src_name, dst_name = PROMOTE_MAP["lead"][1], PROMOTE_MAP["lead"][0]
-
-    src_path = Path(args.from_file) if args.from_file else CRM_DIR / src_name
-    dst_path = Path(args.to_file) if args.to_file else CRM_DIR / dst_name
-
-    if not src_path.exists():
-        print(f"Error: {src_path} not found")
-        sys.exit(1)
-
-    src_data = load_json(src_path)
-    dst_data = load_json(dst_path)
-
-    identity_value = getattr(args, "identity_value", None) or getattr(args, "linkedin_url", None)
-    identity_field = getattr(args, "identity_field", None) or IDENTITY_PRIMARY
-    record = None
-    remaining = []
-    for r in src_data:
-        if _identity_matches(r, identity_field, identity_value):
-            record = r
-        else:
-            remaining.append(r)
-
-    if record is None:
-        print(f"Error: no record found for {identity_field} '{identity_value}' in {src_path.name}")
-        sys.exit(1)
-
-    dst_data.append(record)
-    dry_run = getattr(args, "dry_run", False)
-    if not dry_run:
-        atomic_write_json(src_path, remaining)
-        atomic_write_json(dst_path, dst_data)
-
-    name = record.get("name", identity_value)
-    if dry_run:
-        if _jout({
-            "action": "demote", "dry_run": True, "record": record,
-            "from": src_path.name, "to": dst_path.name,
-        }):
-            return
-        print(f"Dry run: would demote {name}  {src_path.name} → {dst_path.name}")
-        return
-    if _jout({"action": "demoted", "record": record, "from": src_path.name, "to": dst_path.name}):
-        return
-    print(f"Demoted: {name}  {src_path.name} → {dst_path.name}")
+        src_name, dst_name = promote_map["lead"][1], promote_map["lead"][0]
+    src_path = Path(args.from_file) if args.from_file else context.root / src_name
+    dst_path = Path(args.to_file) if args.to_file else context.root / dst_name
+    _move_between(args, src_path, dst_path, "demote")
 
 
 def cmd_list(args):
@@ -1059,7 +1208,7 @@ def cmd_list(args):
     if args.file:
         path = Path(args.file)
     else:
-        for name, p in PIPELINE_FILES:
+        for name, p in _context(args).pipeline_files:
             if name == stage:
                 path = p
                 break
@@ -1107,7 +1256,7 @@ def cmd_dump_emails(args):
     """Dump all email addresses in the pipeline, comma separated."""
     seen = set()
     emails = []
-    for _stage, r in load_all():
+    for _stage, r in load_all(args):
         email = (r.get("email") or "").strip()
         if email and email not in seen:
             seen.add(email)
@@ -1130,14 +1279,15 @@ def cmd_dump_emails(args):
 def cmd_backup(args):
     from jsoncrm.backup import create_backup
 
-    config_path = Path(args.config).resolve() if args.config else CRM_DIR / ".crm.json"
-    source_files = [*(path for _, path in PIPELINE_FILES), COMPETITORS_FILE]
+    context = _context(args)
+    config_path = context.config_path
+    source_files = [*(path for _, path in context.pipeline_files), context.competitors_file]
     if config_path.exists():
         source_files.insert(0, config_path)
-    if PENDING_FILE.exists():
-        source_files.append(PENDING_FILE)
+    if context.pending_file.exists():
+        source_files.append(context.pending_file)
     try:
-        result = create_backup(CRM_DIR, source_files, output=args.output)
+        result = create_backup(context.root, source_files, output=args.output)
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}")
         sys.exit(1)
@@ -1173,7 +1323,8 @@ def build_parser():
     p_find = subparsers.add_parser("find", parents=[parent], help="Find records in a specific CRM JSON file.")
     p_find.add_argument("--database_file", required=True, help="JSON file to search")
     p_find.add_argument("--item_file", default=None, help="Path to JSON object containing match fields")
-    p_find.add_argument("--item_json", default=None, help="JSON object containing match fields")
+    p_find.add_argument("--item_json", default=None, help="JSON object containing match fields or field__operator expressions")
+    p_find.add_argument("--fields", nargs="+", default=None, help="Project only these fields (space or comma separated)")
     p_find.add_argument("--output_file", default=None, help="Optional file for matched results")
 
     # add
@@ -1277,6 +1428,16 @@ def build_parser():
     p_filter_competitors.add_argument("--dry-run", action="store_true",
                                       help="Print what would happen without writing")
 
+    # move
+    p_move = subparsers.add_parser("move", parents=[parent], help="Move a record between configured pipeline stages.")
+    p_move.add_argument("identity_value", help="Configured identity value of the record to move")
+    p_move.add_argument("--from", dest="from_stage", required=True, help="Source stage name")
+    p_move.add_argument("--to", dest="to_stage", required=True, help="Destination stage name")
+    p_move.add_argument("--identity-field", default=None, help="Override the configured primary identity field")
+    write_mode = p_move.add_mutually_exclusive_group()
+    write_mode.add_argument("--dry-run", action="store_true", help="Preview without writing files")
+    write_mode.add_argument("--apply", action="store_true", help="Apply the change (default behavior)")
+
     # promote
     p_promote = subparsers.add_parser("promote", parents=[parent],
                                       help="Move a record to the next pipeline stage.")
@@ -1304,13 +1465,13 @@ def build_parser():
     p_stats.add_argument("--customers-file", default=None, help="Override customers file")
 
     # validate
-    p_validate = subparsers.add_parser("validate", parents=[parent], help="Validate pipeline JSON files for structural integrity.")
+    p_validate = subparsers.add_parser("validate", parents=[parent], help="Validate identities, field rules, and sorted stage invariants.")
     p_validate.add_argument("--leads-file", default=None, help="Override leads file")
     p_validate.add_argument("--prospects-file", default=None, help="Override prospects file")
     p_validate.add_argument("--customers-file", default=None, help="Override customers file")
 
     # recent
-    p_recent = subparsers.add_parser("recent", parents=[parent], help="Show the most recently added records.")
+    p_recent = subparsers.add_parser("recent", parents=[parent], help="Show records by each stage's configured recent_key date.")
     p_recent.add_argument("-n", "--num", type=int, default=10, help="Number of records to show (default: 10)")
     p_recent.add_argument("--stage", default=None, help="Limit to a specific stage (e.g. leads)")
     p_recent.add_argument("--leads-file", default=None, help="Override leads file")
@@ -1373,28 +1534,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    # Load config and rebind module-level constants
-    from jsoncrm.config import Config
-    config = Config.from_file(args.config)
-    # If a config file was explicitly provided, resolve relative paths from its directory
-    if args.config:
-        schema.CRM_DIR = Path(args.config).resolve().parent
-    schema.apply_config(config)
-
-    # Rebind tool.py's imported names so they reflect the config
-    global CRM_DIR, PIPELINE_FILES, COMPETITORS_FILE, LEADS_FILE, PROSPECTS_FILE
-    global CUSTOMERS_FILE, PENDING_FILE, SCORE_ORDER, PROMOTE_MAP, IDENTITY_PRIMARY
-    CRM_DIR = schema.CRM_DIR
-    PIPELINE_FILES = schema.PIPELINE_FILES
-    COMPETITORS_FILE = schema.COMPETITORS_FILE
-    LEADS_FILE = schema.LEADS_FILE
-    PROSPECTS_FILE = schema.PROSPECTS_FILE
-    CUSTOMERS_FILE = schema.CUSTOMERS_FILE
-    PENDING_FILE = schema.PENDING_FILE
-    SCORE_ORDER = schema.SCORE_ORDER
-    PROMOTE_MAP = _build_promote_map(config)
-    IDENTITY_PRIMARY = config.identity_primary
-
+    args.crm_context = CRMContext.from_file(args.config)
     _set_json_mode(args.json)
 
     if args.command == "search":
@@ -1423,6 +1563,8 @@ def main():
         cmd_deduplicate(args)
     elif args.command in ("filter-competitors", "filter-blocklist"):
         cmd_filter_competitors(args)
+    elif args.command == "move":
+        cmd_move(args)
     elif args.command == "promote":
         cmd_promote(args)
     elif args.command == "stats":
