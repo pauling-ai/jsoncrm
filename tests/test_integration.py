@@ -11,7 +11,6 @@ from types import SimpleNamespace
 import pytest
 
 
-import jsoncrm.schema as _jsoncrm_schema
 import jsoncrm.tool as _jsoncrm_tool
 import jsoncrm.utils as _jsoncrm_utils
 
@@ -1362,7 +1361,7 @@ def test_filter_competitors_includes_skipped_watchlist_buckets(monkeypatch, tmp_
         )
         + "\n"
     )
-    monkeypatch.setattr(_jsoncrm_tool, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
 
     _jsoncrm_tool.cmd_filter_competitors(SimpleNamespace(file=str(source_file), dry_run=False))
 
@@ -1385,7 +1384,7 @@ def test_search_competitors_includes_skipped_people(monkeypatch, tmp_path):
         )
         + "\n"
     )
-    monkeypatch.setattr(_jsoncrm_schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
 
     assert _jsoncrm_utils.search_competitors("Noisy Person") == [
         ("person", {"name": "Noisy Person", "url": "https://www.linkedin.com/in/noisy-person/"})

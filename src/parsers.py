@@ -4,11 +4,12 @@ import json
 from datetime import date
 from pathlib import Path
 
+from jsoncrm.context import CRMContext
 from jsoncrm.schema import JSON_DB_ENCODING
-from jsoncrm.utils import atomic_write_json
 
 
 def cmd_parse_from_linkedin_mcp(args):
+    context = CRMContext.from_file(getattr(args, "config", None))
     for filename in args.files:
         path = Path(filename)
         if not path.exists():
@@ -94,5 +95,5 @@ def cmd_parse_from_linkedin_mcp(args):
                 "notes": ""
             })
             
-        atomic_write_json(path, out_data)
+        context.write_json(path, out_data)
         print(f"Successfully converted {len(out_data)} records in {path.name}.")

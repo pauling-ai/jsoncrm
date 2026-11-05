@@ -137,12 +137,7 @@ def test_cmd_backup_omits_optional_missing_files(monkeypatch, tmp_path, capsys):
     for path in (leads, prospects, customers):
         _write(path, "[]\n")
     _write(competitors, '{"companies":[]}\n')
-    monkeypatch.setattr(tool, "CRM_DIR", crm)
-    monkeypatch.setattr(tool, "PIPELINE_FILES", [
-        ("leads", leads), ("prospects", prospects), ("customers", customers),
-    ])
-    monkeypatch.setattr(tool, "COMPETITORS_FILE", competitors)
-    monkeypatch.setattr(tool, "PENDING_FILE", crm / ".pending_update.json")
+    monkeypatch.chdir(crm)
     tool._set_json_mode(True)
     try:
         tool.cmd_backup(SimpleNamespace(
