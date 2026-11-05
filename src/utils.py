@@ -21,25 +21,30 @@ def load_json(path):
 
 
 def atomic_write_json(path, data):
-    """Write *data* to *path* atomically via a temp file + os.replace()."""
+    """Write *data* atomically; CRMContext applies stage invariants first."""
     import uuid
+
     path = Path(path)
     tmp = path.with_suffix(path.suffix + f".tmp-{uuid.uuid4().hex}")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding=JSON_DB_ENCODING)
-    os.replace(tmp, path)
+    try:
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding=JSON_DB_ENCODING)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
-def build_known_urls(*, leads_file=None, prospects_file=None, customers_file=None):
+def build_known_urls(*, leads_file=None, prospects_file=None, customers_file=None, context=None):
+    if context is None:
+        from jsoncrm.context import CRMContext
+        context = CRMContext.from_file()
     known_urls = set()
     if leads_file is None and prospects_file is None and customers_file is None:
-        from jsoncrm.schema import PIPELINE_FILES
-        pipeline_files = PIPELINE_FILES
+        pipeline_files = context.pipeline_files
     else:
-        from jsoncrm.schema import LEADS_FILE, PROSPECTS_FILE, CUSTOMERS_FILE
         pipeline_files = [
-            ("leads", Path(leads_file) if leads_file else LEADS_FILE),
-            ("prospects", Path(prospects_file) if prospects_file else PROSPECTS_FILE),
-            ("customers", Path(customers_file) if customers_file else CUSTOMERS_FILE),
+            ("leads", Path(leads_file) if leads_file else context.leads_file),
+            ("prospects", Path(prospects_file) if prospects_file else context.prospects_file),
+            ("customers", Path(customers_file) if customers_file else context.customers_file),
         ]
     for _, path in pipeline_files:
         for record in load_json(path):
@@ -98,11 +103,14 @@ def iter_competitor_entries(data, keys):
                 yield entry
 
 
-def search_competitors(query, person=False, company=False):
-    from jsoncrm.schema import COMPETITORS_FILE
-    if not COMPETITORS_FILE.exists():
+def search_competitors(query, person=False, company=False, context=None):
+    if context is None:
+        from jsoncrm.context import CRMContext
+        context = CRMContext.from_file()
+    competitors_file = context.competitors_file
+    if not competitors_file.exists():
         return []
-    data = json.loads(COMPETITORS_FILE.read_text(encoding=JSON_DB_ENCODING))
+    data = json.loads(competitors_file.read_text(encoding=JSON_DB_ENCODING))
     q = query.lower()
     q_norm = normalize_company_name(query)
     hits = []
@@ -121,15 +129,16 @@ def normalize_url(url):
     return (url or "").rstrip("/").lower()
 
 
-def find_record(target_url, target_file=None):
+def find_record(target_url, target_file=None, context=None):
+    if context is None:
+        from jsoncrm.context import CRMContext
+        context = CRMContext.from_file()
     norm = normalize_url(target_url)
     matches = []
     if target_file:
         paths = [Path(target_file)]
     else:
-        # Search configured pipeline files instead of globbing all *.json
-        from jsoncrm.schema import PIPELINE_FILES
-        paths = [path for _, path in PIPELINE_FILES]
+        paths = [path for _, path in context.pipeline_files]
     for path in paths:
         try:
             data = json.loads(path.read_text(encoding=JSON_DB_ENCODING))
@@ -143,8 +152,11 @@ def find_record(target_url, target_file=None):
     return matches
 
 
-def apply_updates(target_url, updates, target_file=None):
-    matches = find_record(target_url, target_file=target_file)
+def apply_updates(target_url, updates, target_file=None, context=None):
+    if context is None:
+        from jsoncrm.context import CRMContext
+        context = CRMContext.from_file()
+    matches = find_record(target_url, target_file=target_file, context=context)
     if not matches:
         print(f"Error: no record found for URL '{target_url}'")
         sys.exit(1)
@@ -155,7 +167,7 @@ def apply_updates(target_url, updates, target_file=None):
 
     for path, data, idx, record in matches:
         record.update(updates)
-        atomic_write_json(path, data)
+        context.write_json(path, data)
         name = record.get("name", target_url)
         changed = ", ".join(f"{k}={v!r}" for k, v in updates.items())
         print(f"Saved: {name}  [{path.name}]  —  {changed}")

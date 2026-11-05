@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 
-import jsoncrm.schema as schema
 from jsoncrm.utils import (
     apply_updates,
     build_known_urls,
@@ -181,7 +180,7 @@ def test_search_competitors_company_match(monkeypatch, tmp_path):
         )
         + "\n"
     )
-    monkeypatch.setattr(schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
     hits = search_competitors("acme")
     assert len(hits) == 1
     assert hits[0][0] == "company"
@@ -196,7 +195,7 @@ def test_search_competitors_person_match(monkeypatch, tmp_path):
         )
         + "\n"
     )
-    monkeypatch.setattr(schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
     hits = search_competitors("alice")
     assert len(hits) == 1
     assert hits[0][0] == "person"
@@ -204,7 +203,7 @@ def test_search_competitors_person_match(monkeypatch, tmp_path):
 
 def test_search_competitors_missing_file_returns_empty(monkeypatch, tmp_path):
     competitors_file = tmp_path / "competitors.json"
-    monkeypatch.setattr(schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
     assert search_competitors("anything") == []
 
 
@@ -220,7 +219,7 @@ def test_search_competitors_person_filter(monkeypatch, tmp_path):
         )
         + "\n"
     )
-    monkeypatch.setattr(schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
     hits = search_competitors("acme", person=True)
     assert len(hits) == 0
     hits = search_competitors("alice", person=True)
@@ -239,7 +238,7 @@ def test_search_competitors_company_filter(monkeypatch, tmp_path):
         )
         + "\n"
     )
-    monkeypatch.setattr(schema, "COMPETITORS_FILE", competitors_file)
+    monkeypatch.chdir(tmp_path)
     hits = search_competitors("alice", company=True)
     assert len(hits) == 0
     hits = search_competitors("acme", company=True)
@@ -262,10 +261,7 @@ def test_build_known_urls_from_explicit_files(tmp_path):
 
 def test_build_known_urls_ignores_missing_files(tmp_path, monkeypatch):
     # When files don't exist, load_json returns [] so known_urls is empty
-    empty = tmp_path / "empty.json"
-    monkeypatch.setattr(schema, "LEADS_FILE", empty)
-    monkeypatch.setattr(schema, "PROSPECTS_FILE", empty)
-    monkeypatch.setattr(schema, "CUSTOMERS_FILE", empty)
+    monkeypatch.chdir(tmp_path)
     assert build_known_urls() == set()
 
 
