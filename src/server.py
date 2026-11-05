@@ -17,40 +17,20 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import jsoncrm.schema as schema
-from jsoncrm.config import Config
-from jsoncrm.schema import PIPELINE_FILES, COMPETITORS_FILE, PENDING_FILE, SCORE_ORDER, JSON_DB_ENCODING
-from jsoncrm.utils import (
-    atomic_write_json,
-    build_known_urls,
-    load_json,
-    normalize_company_name,
-    normalize_url,
-    record_identity_value,
+from jsoncrm.context import CRMContext
+from jsoncrm.schema import JSON_DB_ENCODING
+from jsoncrm.invariants import (
+    DuplicateRecordError,
+    RecordError,
+    RecordNotFoundError,
+    identity_matches,
 )
-
-# ---------------------------------------------------------------------------
-# Config (injected at startup)
-# ---------------------------------------------------------------------------
-
-SERVER_CONFIG: dict[str, Any] = {
-    "crm_dir": Path("."),
-    "github_token": None,
-    "repo": None,
-    "base_branch": "main",
-}
-
+from jsoncrm.tool import add_record, delete_record, move_record, update_record
+from jsoncrm.utils import load_json
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _stage_path(stage: str) -> Path:
-    for name, path in schema.PIPELINE_FILES:
-        if name == stage:
-            return path
-    raise HTTPException(status_code=404, detail=f"Unknown stage '{stage}'")
 
 
 def _infer_schema(rows: list[dict]) -> dict[str, str]:
@@ -62,8 +42,7 @@ def _infer_schema(rows: list[dict]) -> dict[str, str]:
     return {k: list(v)[0] if len(v) == 1 else "mixed" for k, v in keys.items()}
 
 
-def _gh_headers() -> dict[str, str]:
-    token = SERVER_CONFIG["github_token"]
+def _gh_headers(token) -> dict[str, str]:
     if not token:
         raise HTTPException(status_code=400, detail="GitHub token not configured")
     return {
@@ -88,6 +67,13 @@ class UpdateRecordRequest(BaseModel):
 
 class DeleteRecordRequest(BaseModel):
     identity: dict[str, Any]
+
+
+class MoveRequest(BaseModel):
+    identity: dict[str, Any]
+    from_stage: str
+    to_stage: str
+    allow_reverse: bool = False
 
 
 class PromoteRequest(BaseModel):
@@ -119,15 +105,59 @@ def create_app(
         allow_headers=["*"],
     )
 
-    # Load config and rebind schema
-    cfg = Config.from_file(config_path)
-    if config_path:
-        schema.CRM_DIR = Path(config_path).resolve().parent
-    schema.apply_config(cfg)
-    SERVER_CONFIG["crm_dir"] = schema.CRM_DIR
-    SERVER_CONFIG["github_token"] = github_token
-    SERVER_CONFIG["repo"] = repo
-    SERVER_CONFIG["base_branch"] = base_branch
+    context = CRMContext.from_file(config_path)
+    app.state.crm_context = context
+    cfg = context.config
+    fields = context.identity_fields
+
+    def stage_path(stage):
+        try:
+            return context.stage_path(stage)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown stage '{stage}'") from exc
+
+    def other_records(*excluded):
+        return context.other_records(*excluded)
+
+    def raise_record_error(exc):
+        if isinstance(exc, RecordNotFoundError):
+            status = 404
+        elif isinstance(exc, DuplicateRecordError):
+            status = 409
+        else:
+            status = 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+
+    def configured_move(identity_field, identity_value, source_name, destination_name, action):
+        source_stage = context.stage_for_name(source_name)
+        destination_stage = context.stage_for_name(destination_name)
+        if not source_stage or not destination_stage:
+            raise HTTPException(status_code=404, detail="Unknown source or destination stage")
+        source_path = stage_path(source_name)
+        destination_path = stage_path(destination_name)
+        try:
+            source_rows, destination_rows, record = move_record(
+                load_json(source_path),
+                load_json(destination_path),
+                identity_field=identity_field,
+                identity_value=identity_value,
+                source_stage=source_stage,
+                destination_stage=destination_stage,
+                fields=fields,
+                transition_map=cfg.transition_map(source_name, destination_name),
+                existing_records=other_records(source_path, destination_path),
+            )
+        except RecordError as exc:
+            raise_record_error(exc)
+        context.write_json(destination_path, destination_rows)
+        context.write_json(source_path, source_rows)
+        return {
+            "ok": True,
+            "action": action,
+            "from": source_name,
+            "to": destination_name,
+            "record": record,
+        }
 
     # -------------------------------------------------------------------
     # Routes
@@ -153,11 +183,12 @@ def create_app(
 
     @app.get("/api/config")
     def get_config() -> dict:
-        cfg_obj = Config.from_file(config_path)
-        stages = [{"name": s["name"], "file": str(schema.CRM_DIR / s["file"])} for s in cfg_obj.pipeline_stages]
+        cfg_obj = context.config
+        stages = [{"name": s["name"], "file": str(context.root / s["file"])} for s in cfg_obj.pipeline_stages]
         return {
-            "crm_dir": str(schema.CRM_DIR),
+            "crm_dir": str(context.root),
             "stages": stages,
+            "transitions": cfg_obj.pipeline_transitions,
             "scores": {
                 "order": list(cfg_obj.score_order.keys()),
                 "disqualified": cfg_obj.disqualified_score,
@@ -178,7 +209,7 @@ def create_app(
         sort_key: str = "",
         sort_dir: str = "asc",
     ) -> dict:
-        path = _stage_path(stage)
+        path = stage_path(stage)
         rows = load_json(path)
         total = len(rows)
 
@@ -211,77 +242,66 @@ def create_app(
 
     @app.get("/api/schema/{stage}")
     def get_schema(stage: str) -> dict:
-        path = _stage_path(stage)
+        path = stage_path(stage)
         rows = load_json(path)
         return {"stage": stage, "columns": _infer_schema(rows)}
 
     @app.post("/api/data/{stage}")
-    def add_record(stage: str, req: AddRecordRequest) -> dict:
-        path = _stage_path(stage)
+    def add_record_route(stage: str, req: AddRecordRequest) -> dict:
+        path = stage_path(stage)
         rows = load_json(path)
-        if rows and not isinstance(rows, list):
+        if not isinstance(rows, list):
             raise HTTPException(status_code=500, detail="File must be a JSON array")
-        record = req.record
-
-        # Duplicate guard on linkedin_url
-        url = normalize_url(record.get("linkedin_url"))
-        if url and url in build_known_urls():
-            raise HTTPException(status_code=409, detail=f"Record with URL '{url}' already exists in pipeline")
-
-        rows.append(record)
-        atomic_write_json(path, rows)
-        return {"ok": True, "stage": stage, "index": len(rows) - 1, "record": record}
+        try:
+            rows, record = add_record(
+                rows,
+                req.record,
+                stage=context.stage_for_name(stage),
+                fields=fields,
+                existing_records=other_records(path),
+            )
+        except RecordError as exc:
+            raise_record_error(exc)
+        context.write_json(path, rows)
+        return {"ok": True, "stage": stage, "index": rows.index(record), "record": record}
 
     @app.patch("/api/data/{stage}")
-    def update_record(stage: str, req: UpdateRecordRequest) -> dict:
-        path = _stage_path(stage)
+    def update_record_route(stage: str, req: UpdateRecordRequest) -> dict:
+        path = stage_path(stage)
         rows = load_json(path)
         if not isinstance(rows, list):
             raise HTTPException(status_code=500, detail="File must be a JSON array")
-
-        updates = req.updates
-        identity_field, identity_value = record_identity_value(updates)
-        if not identity_field:
-            raise HTTPException(status_code=400, detail="Updates must contain an identity field (id or linkedin_url)")
-
-        matched = False
-        for r in rows:
-            if r.get(identity_field) == identity_value:
-                # Warn about unknown fields
-                unknown = [k for k in updates if k not in r and k != identity_field]
-                r.update(updates)
-                matched = True
-                break
-
-        if not matched:
-            raise HTTPException(status_code=404, detail=f"No record found for {identity_field} '{identity_value}'")
-
-        atomic_write_json(path, rows)
-        return {"ok": True, "stage": stage, "unknown_fields": unknown if matched else []}
+        try:
+            rows, _record, unknown = update_record(
+                rows,
+                req.updates,
+                stage=context.stage_for_name(stage),
+                fields=fields,
+                existing_records=other_records(path),
+            )
+        except RecordError as exc:
+            raise_record_error(exc)
+        context.write_json(path, rows)
+        return {"ok": True, "stage": stage, "unknown_fields": unknown}
 
     @app.delete("/api/data/{stage}")
-    def delete_record(stage: str, req: DeleteRecordRequest) -> dict:
-        path = _stage_path(stage)
+    def delete_record_route(stage: str, req: DeleteRecordRequest) -> dict:
+        path = stage_path(stage)
         rows = load_json(path)
         if not isinstance(rows, list):
             raise HTTPException(status_code=500, detail="File must be a JSON array")
-
-        identity_field, identity_value = record_identity_value(req.identity)
-        if not identity_field:
-            raise HTTPException(status_code=400, detail="Identity must contain id or linkedin_url")
-
-        new_rows = [r for r in rows if r.get(identity_field) != identity_value]
-        if len(new_rows) == len(rows):
-            raise HTTPException(status_code=404, detail=f"No record found for {identity_field} '{identity_value}'")
-
-        atomic_write_json(path, new_rows)
+        try:
+            new_rows, _record = delete_record(rows, req.identity, fields=fields)
+        except RecordError as exc:
+            raise_record_error(exc)
+        context.write_json(path, new_rows)
         return {"ok": True, "stage": stage, "deleted": 1, "remaining": len(new_rows)}
 
     @app.get("/api/competitors")
     def get_competitors() -> dict:
-        if not schema.COMPETITORS_FILE.exists():
+        if not context.competitors_file.exists():
             return {"companies": [], "people": []}
-        data = load_json(schema.COMPETITORS_FILE)
+        data = load_json(context.competitors_file)
         if not isinstance(data, dict):
             return {"companies": [], "people": []}
         companies = [
@@ -296,82 +316,59 @@ def create_app(
         ]
         return {"companies": companies, "people": people}
 
+    @app.post("/api/move")
+    def move_record_route(req: MoveRequest) -> dict:
+        identity_field = next(
+            (field for field in fields if req.identity.get(field) not in (None, "")),
+            None,
+        )
+        if not identity_field:
+            raise HTTPException(status_code=400, detail=f"Identity must contain one of {fields}")
+        forward = req.to_stage in cfg.pipeline_transitions.get(req.from_stage, [])
+        reverse = req.from_stage in cfg.pipeline_transitions.get(req.to_stage, [])
+        if not forward and not (req.allow_reverse and reverse):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Transition '{req.from_stage}->{req.to_stage}' is not configured",
+            )
+        return configured_move(
+            identity_field,
+            req.identity[identity_field],
+            req.from_stage,
+            req.to_stage,
+            "moved",
+        )
+
     @app.post("/api/promote")
     def promote_record(req: PromoteRequest) -> dict:
-        from jsoncrm.tool import PROMOTE_MAP
-
-        norm = normalize_url(req.linkedin_url)
-        for stage_key, (src_name, dst_name) in PROMOTE_MAP.items():
-            src_path = schema.CRM_DIR / src_name
-            dst_path = schema.CRM_DIR / dst_name
-            src_rows = load_json(src_path)
-            dst_rows = load_json(dst_path)
-
-            record = None
-            remaining = []
-            for r in src_rows:
-                if normalize_url(r.get("linkedin_url", "")) == norm:
-                    record = r
-                else:
-                    remaining.append(r)
-
-            if record is not None:
-                dst_rows.append(record)
-                atomic_write_json(src_path, remaining)
-                atomic_write_json(dst_path, dst_rows)
-                return {
-                    "ok": True,
-                    "action": "promoted",
-                    "from": src_name,
-                    "to": dst_name,
-                    "record": record,
-                }
-
+        for source_name, destinations in cfg.pipeline_transitions.items():
+            if not destinations:
+                continue
+            rows = load_json(stage_path(source_name))
+            if any(identity_matches(row, "linkedin_url", req.linkedin_url) for row in rows):
+                return configured_move(
+                    "linkedin_url", req.linkedin_url, source_name, destinations[0], "promoted",
+                )
         raise HTTPException(status_code=404, detail=f"No record found for '{req.linkedin_url}'")
 
     @app.post("/api/demote")
     def demote_record(req: PromoteRequest) -> dict:
-        from jsoncrm.tool import PROMOTE_MAP
-
-        # Reverse the promote map
-        reverse = {}
-        for src_name, dst_name in PROMOTE_MAP.values():
-            reverse[dst_name] = (dst_name, src_name)
-
-        norm = normalize_url(req.linkedin_url)
-        for src_name, dst_name in reverse.values():
-            src_path = schema.CRM_DIR / src_name
-            dst_path = schema.CRM_DIR / dst_name
-            src_rows = load_json(src_path)
-            dst_rows = load_json(dst_path)
-
-            record = None
-            remaining = []
-            for r in src_rows:
-                if normalize_url(r.get("linkedin_url", "")) == norm:
-                    record = r
-                else:
-                    remaining.append(r)
-
-            if record is not None:
-                dst_rows.append(record)
-                atomic_write_json(src_path, remaining)
-                atomic_write_json(dst_path, dst_rows)
-                return {
-                    "ok": True,
-                    "action": "demoted",
-                    "from": src_name,
-                    "to": dst_name,
-                    "record": record,
-                }
-
+        reverse = [
+            (destination, source_name)
+            for source_name, destinations in cfg.pipeline_transitions.items()
+            for destination in destinations
+        ]
+        for source_name, destination_name in reverse:
+            rows = load_json(stage_path(source_name))
+            if any(identity_matches(row, "linkedin_url", req.linkedin_url) for row in rows):
+                return configured_move(
+                    "linkedin_url", req.linkedin_url, source_name, destination_name, "demoted",
+                )
         raise HTTPException(status_code=404, detail=f"No record found for '{req.linkedin_url}'")
 
     @app.post("/api/pr")
     def create_pr(req: PRRequest) -> dict:
-        token = SERVER_CONFIG["github_token"]
-        repo = SERVER_CONFIG["repo"]
-        base_branch = SERVER_CONFIG["base_branch"]
+        token = github_token
         if not token or not repo:
             raise HTTPException(status_code=400, detail="GitHub not configured")
 
@@ -380,7 +377,7 @@ def create_app(
 
         # Get base branch SHA
         ref_url = f"https://api.github.com/repos/{repo}/git/ref/heads/{base_branch}"
-        r = httpx.get(ref_url, headers=_gh_headers())
+        r = httpx.get(ref_url, headers=_gh_headers(token))
         if r.status_code != 200:
             raise HTTPException(status_code=500, detail=f"Could not get base branch: {r.text}")
         base_sha = r.json()["object"]["sha"]
@@ -388,14 +385,14 @@ def create_app(
         # Create new branch
         r = httpx.post(
             f"https://api.github.com/repos/{repo}/git/refs",
-            headers=_gh_headers(),
+            headers=_gh_headers(token),
             json={"ref": f"refs/heads/{branch}", "sha": base_sha},
         )
         if r.status_code not in (200, 201):
             raise HTTPException(status_code=500, detail=f"Could not create branch: {r.text}")
 
         # Push each pipeline file
-        for stage_name, path in schema.PIPELINE_FILES:
+        for stage_name, path in context.pipeline_files:
             if not path.exists():
                 continue
             filename = path.name
@@ -404,7 +401,7 @@ def create_app(
 
             # Get file SHA on base branch
             file_url = f"https://api.github.com/repos/{repo}/contents/{filename}"
-            r = httpx.get(file_url, headers=_gh_headers(), params={"ref": base_branch})
+            r = httpx.get(file_url, headers=_gh_headers(token), params={"ref": base_branch})
             file_sha = r.json().get("sha") if r.status_code == 200 else None
 
             payload = {
@@ -415,14 +412,14 @@ def create_app(
             if file_sha:
                 payload["sha"] = file_sha
 
-            r = httpx.put(file_url, headers=_gh_headers(), json=payload)
+            r = httpx.put(file_url, headers=_gh_headers(token), json=payload)
             if r.status_code in (200, 201):
                 files_changed.append(filename)
 
         # Open PR
         r = httpx.post(
             f"https://api.github.com/repos/{repo}/pulls",
-            headers=_gh_headers(),
+            headers=_gh_headers(token),
             json={
                 "title": req.title or "Update CRM via jsoncrm",
                 "body": req.body or f"Automated PR from jsoncrm serve.\n\n**Files changed:** {', '.join(files_changed)}",
@@ -454,7 +451,7 @@ def run_server(
         base_branch=base_branch,
     )
     print(f"\n  jsoncrm serve running at http://127.0.0.1:{port}")
-    print(f"  CRM dir : {schema.CRM_DIR.resolve()}")
+    print(f"  CRM dir : {app.state.crm_context.root}")
     print(f"  Repo    : {repo or '(not set — PR disabled)'}")
     print(f"  Branch  : {base_branch}\n")
     uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")

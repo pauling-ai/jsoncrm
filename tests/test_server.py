@@ -7,7 +7,6 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-import jsoncrm.schema as schema
 from jsoncrm.server import create_app
 
 
@@ -48,17 +47,7 @@ def tmp_crm(tmp_path):
     config_path = tmp_path / ".crm.json"
     config_path.write_text(json.dumps(config))
 
-    # Rebind schema for the server factory
-    orig_dir = schema.CRM_DIR
-    orig_pipeline = schema.PIPELINE_FILES
-    orig_competitors = schema.COMPETITORS_FILE
-    schema.CRM_DIR = tmp_path
-    from jsoncrm.config import Config
-    schema.apply_config(Config.from_file(str(config_path)))
     yield tmp_path
-    schema.CRM_DIR = orig_dir
-    schema.PIPELINE_FILES = orig_pipeline
-    schema.COMPETITORS_FILE = orig_competitors
 
 
 @pytest_asyncio.fixture
