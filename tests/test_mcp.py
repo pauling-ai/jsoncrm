@@ -43,6 +43,30 @@ BASE_FILES = {
     "customers.json": [],
     "competitors.json": {"companies": [{"name": "Acme"}], "people": []},
 }
+SORTED_CONFIG = {
+    "identity": {"primary": "sol_id", "fallback": ["active_key"]},
+    "pipeline": {
+        "stages": [
+            {"name": "leads", "file": "leads.json", "sort": {"key": "deadline", "type": "iso-date", "tiebreak": "sol_id"}},
+            {"name": "prospects", "file": "prospects.json", "sort": {"key": "check_at", "type": "iso-date", "tiebreak": "sol_id"}},
+            {"name": "customers", "file": "customers.json"},
+        ],
+        "transitions": {"leads": ["prospects"], "prospects": ["customers"]},
+        "maps": {"leads->prospects": {"rename": {"deadline": "check_at"}}},
+    },
+}
+SORTED_LEAD = {
+    "sol_id": "SOL-1",
+    "active_key": "key-1",
+    "linkedin_url": ALICE_URL,
+    "deadline": "2026-11-10",
+}
+SORTED_LEAD_2 = {
+    "sol_id": "SOL-2",
+    "active_key": "key-2",
+    "linkedin_url": BOB_URL,
+    "deadline": "2026-11-20",
+}
 
 CASES = [
     {
@@ -76,6 +100,45 @@ CASES = [
             "database_file": "$CRM/leads.json",
             "item_json": '{"linkedin_url":"https://www.linkedin.com/in/alice/","company":"UpdatedCo"}',
         },
+    },
+    {
+        "name": "sorted-add",
+        "command": "add",
+        "config": SORTED_CONFIG,
+        "files": {"leads.json": [SORTED_LEAD], "prospects.json": []},
+        "cli_args": [
+            "--database_file", "$CRM/leads.json", "--item_json",
+            '{"sol_id":"SOL-0","active_key":"key-0","deadline":"2026-11-01"}',
+        ],
+        "mcp_args": {
+            "database_file": "$CRM/leads.json",
+            "item_json": '{"sol_id":"SOL-0","active_key":"key-0","deadline":"2026-11-01"}',
+        },
+    },
+    {
+        "name": "sorted-update",
+        "command": "update",
+        "config": SORTED_CONFIG,
+        "files": {"leads.json": [SORTED_LEAD, SORTED_LEAD_2], "prospects.json": []},
+        "cli_args": [
+            "--database_file", "$CRM/leads.json", "--item_json",
+            '{"sol_id":"SOL-1","deadline":"2026-11-30"}',
+        ],
+        "mcp_args": {
+            "database_file": "$CRM/leads.json",
+            "item_json": '{"sol_id":"SOL-1","deadline":"2026-11-30"}',
+        },
+    },
+    {
+        "name": "sorted-move",
+        "command": "move",
+        "config": SORTED_CONFIG,
+        "files": {
+            "leads.json": [SORTED_LEAD],
+            "prospects.json": [{"sol_id": "SOL-0", "check_at": "2026-11-01"}],
+        },
+        "cli_args": ["SOL-1", "--from", "leads", "--to", "prospects"],
+        "mcp_args": {"identity_value": "SOL-1", "from_stage": "leads", "to_stage": "prospects"},
     },
     {
         "name": "delete",
@@ -167,6 +230,11 @@ CASES = [
         "mcp_args": {"file": "$CRM/source.json"},
     },
     {
+        "name": "move",
+        "cli_args": [ALICE_URL, "--from", "leads", "--to", "prospects"],
+        "mcp_args": {"identity_value": ALICE_URL, "from_stage": "leads", "to_stage": "prospects"},
+    },
+    {
         "name": "promote",
         "cli_args": [
             ALICE_URL, "--lead",
@@ -237,7 +305,7 @@ CASES = [
 
 for _base_case in [
     case for case in CASES
-    if case["name"] in {"add", "update", "delete", "promote", "demote"}
+    if case["name"] in {"add", "update", "delete", "move", "promote", "demote"}
 ]:
     for _mode in ("dry-run", "apply"):
         _variant = copy.deepcopy(_base_case)
@@ -286,7 +354,7 @@ def _write_json(path, data):
 
 def _setup_crm(root, case):
     root.mkdir(parents=True)
-    _write_json(root / ".crm.json", {"name": "mcp-parity-test"})
+    _write_json(root / ".crm.json", case.get("config", {"name": "mcp-parity-test"}))
     files = copy.deepcopy(BASE_FILES)
     files.update(copy.deepcopy(case.get("files", {})))
     for name, data in files.items():

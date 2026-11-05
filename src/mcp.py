@@ -116,12 +116,13 @@ def create_server(config_path=None):
         database_file: str,
         item_file: str | None = None,
         item_json: dict | str | None = None,
+        fields: list[str] | None = None,
         output_file: str | None = None,
     ):
-        """Find exact field matches in a CRM JSON file."""
+        """Find field matches, comparisons, and date windows in a CRM JSON file."""
         return _run_command(
             "find", config_path, database_file=database_file, item_file=item_file,
-            item_json=item_json, output_file=output_file,
+            item_json=item_json, fields=fields, output_file=output_file,
         )
 
     @server.tool()
@@ -148,7 +149,7 @@ def create_server(config_path=None):
         dry_run: bool = False,
         apply: bool = False,
     ):
-        """Update one record identified by id or linkedin_url."""
+        """Update one record using the configured identity fields."""
         return _run_command(
             "update", config_path, database_file=database_file, item_file=item_file,
             item_json=item_json, output_file=output_file, dry_run=dry_run, apply=apply,
@@ -163,7 +164,7 @@ def create_server(config_path=None):
         dry_run: bool = False,
         apply: bool = False,
     ):
-        """Delete one record identified by id or linkedin_url."""
+        """Delete one record using the configured identity fields."""
         return _run_command(
             "delete", config_path, database_file=database_file, item_file=item_file,
             item_json=item_json, output_file=output_file, dry_run=dry_run, apply=apply,
@@ -230,6 +231,21 @@ def create_server(config_path=None):
         return _run_command("filter-competitors", config_path, file=file, dry_run=dry_run)
 
     @server.tool()
+    def move(
+        identity_value: str,
+        from_stage: str,
+        to_stage: str,
+        identity_field: str | None = None,
+        dry_run: bool = False,
+        apply: bool = False,
+    ):
+        """Move a record between any configured transition, applying its field map."""
+        return _run_command(
+            "move", config_path, identity_value=identity_value, from_stage=from_stage,
+            to_stage=to_stage, identity_field=identity_field, dry_run=dry_run, apply=apply,
+        )
+
+    @server.tool()
     def promote(
         identity_value: str,
         identity_field: str | None = None,
@@ -265,7 +281,7 @@ def create_server(config_path=None):
         prospects_file: str | None = None,
         customers_file: str | None = None,
     ):
-        """Validate pipeline JSON files for structural integrity."""
+        """Validate structure, configured identities, field rules, and sorted order."""
         return _run_command(
             "validate", config_path, leads_file=leads_file,
             prospects_file=prospects_file, customers_file=customers_file,
@@ -279,7 +295,7 @@ def create_server(config_path=None):
         prospects_file: str | None = None,
         customers_file: str | None = None,
     ):
-        """Show the most recently added pipeline records."""
+        """Show records ordered by each stage's configured recent_key date."""
         return _run_command(
             "recent", config_path, num=num, stage=stage, leads_file=leads_file,
             prospects_file=prospects_file, customers_file=customers_file,
