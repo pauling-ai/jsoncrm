@@ -186,18 +186,20 @@ function renderBody() {
     actionTd.style.whiteSpace = "nowrap";
     const actions = document.createElement("div");
     actions.className = "pipeline-actions";
-    const stageIdx = stages.indexOf(activeStage);
-    if (stageIdx < stages.length - 1 && row.linkedin_url) {
-      const btn = document.createElement("button");
-      btn.textContent = "→ " + stages[stageIdx + 1];
-      btn.onclick = (e) => { e.stopPropagation(); promoteRow(row.linkedin_url); };
-      actions.appendChild(btn);
+    const transitions = config.transitions || {};
+    const destinations = (transitions[activeStage] || []).map(name => ({ name, reverse: false }));
+    for (const [source, targets] of Object.entries(transitions)) {
+      if (source !== activeStage && targets.includes(activeStage)) destinations.push({ name: source, reverse: true });
     }
-    if (stageIdx > 0 && row.linkedin_url) {
-      const btn = document.createElement("button");
-      btn.textContent = "← " + stages[stageIdx - 1];
-      btn.onclick = (e) => { e.stopPropagation(); demoteRow(row.linkedin_url); };
-      actions.appendChild(btn);
+    const identity = recordIdentity(row);
+    if (Object.keys(identity).length) {
+      destinations.forEach(({ name, reverse }) => {
+        const btn = document.createElement("button");
+        const direction = stages.indexOf(name) >= stages.indexOf(activeStage) ? "→" : "←";
+        btn.textContent = `${direction} ${name}`;
+        btn.onclick = (e) => { e.stopPropagation(); moveRow(row, name, reverse); };
+        actions.appendChild(btn);
+      });
     }
     actionTd.appendChild(actions);
     tr.appendChild(actionTd);
@@ -328,10 +330,30 @@ async function commitEdit(ri, ci, td, rawVal) {
 }
 
 // ── Row ops ───────────────────────────────────────────────────────────────────
+function recordIdentity(row) {
+  const configured = [config.identity?.primary, ...(config.identity?.fallback || [])].filter(Boolean);
+  for (const field of configured) {
+    if (row[field] !== null && row[field] !== undefined && row[field] !== "") {
+      return { [field]: row[field] };
+    }
+  }
+  return {};
+}
+
 async function addRowFn() {
   const cols = columns[activeStage] || [];
   const blank = {};
   cols.forEach(c => { blank[c.key] = null; });
+  const primary = config.identity?.primary;
+  if (primary) {
+    const value = window.prompt(`Value for required identity field “${primary}”:`);
+    if (value === null) return;
+    if (!value.trim()) {
+      toast("Add failed: identity is required", "error");
+      return;
+    }
+    blank[primary] = value.trim();
+  }
 
   try {
     const res = await fetch(`/api/data/${activeStage}`, {
@@ -362,9 +384,7 @@ async function deleteSelectedRow() {
   const row = rows[activeStage][localIdx];
   if (!row) return;
 
-  const identity = {};
-  if (row.id) identity.id = row.id;
-  else if (row.linkedin_url) identity.linkedin_url = row.linkedin_url;
+  const identity = recordIdentity(row);
 
   try {
     const res = await fetch(`/api/data/${activeStage}`, {
@@ -390,42 +410,28 @@ function revertChanges() {
   fetchPage();
 }
 
-// ── Promote / Demote ──────────────────────────────────────────────────────────
-async function promoteRow(url) {
+// ── Pipeline moves ─────────────────────────────────────────────────────────────
+async function moveRow(row, destination, reverse = false) {
   try {
-    const res = await fetch("/api/promote", {
+    const res = await fetch("/api/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ linkedin_url: url }),
+      body: JSON.stringify({
+        identity: recordIdentity(row),
+        from_stage: activeStage,
+        to_stage: destination,
+        allow_reverse: reverse,
+      }),
     });
     if (!res.ok) {
       const err = await res.json();
-      toast("Promote failed: " + (err.detail || "unknown"), "error");
+      toast("Move failed: " + (err.detail || "unknown"), "error");
       return;
     }
-    toast("Promoted", "success");
+    toast(`Moved to ${destination}`, "success");
     await reloadAllStages();
   } catch (e) {
-    toast("Promote failed: " + e.message, "error");
-  }
-}
-
-async function demoteRow(url) {
-  try {
-    const res = await fetch("/api/demote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ linkedin_url: url }),
-    });
-    if (!res.ok) {
-      const err = await res.json();
-      toast("Demote failed: " + (err.detail || "unknown"), "error");
-      return;
-    }
-    toast("Demoted", "success");
-    await reloadAllStages();
-  } catch (e) {
-    toast("Demote failed: " + e.message, "error");
+    toast("Move failed: " + e.message, "error");
   }
 }
 
