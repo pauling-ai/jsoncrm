@@ -85,6 +85,17 @@ class Config:
     def pipeline_transitions(self):
         return self._data["pipeline"].get("transitions", {})
 
+    @property
+    def pipeline_transition_maps(self):
+        return self._data["pipeline"].get("maps", {})
+
+    def transition_map(self, source, destination):
+        return self.pipeline_transition_maps.get(f"{source}->{destination}")
+
+    @staticmethod
+    def stage_recent_key(stage):
+        return stage.get("recent_key", "added")
+
     # --- identity ---
 
     @property

@@ -117,9 +117,8 @@ def test_scores_empty_disqualified_falls_back_to_default(tmp_path):
     assert cfg.disqualified_score == "❌"
 
 
-def test_apply_config_rebinds_schema(tmp_path):
-    """Loading a custom config and applying it should rebind schema constants."""
-    import jsoncrm.schema as schema
+def test_context_resolves_custom_config_paths(tmp_path):
+    from jsoncrm.context import CRMContext
 
     config_path = tmp_path / "investor.json"
     config_path.write_text(
@@ -136,12 +135,9 @@ def test_apply_config_rebinds_schema(tmp_path):
             }
         )
     )
-    cfg = Config.from_file(path=str(config_path))
-    schema.apply_config(cfg)
+    context = CRMContext.from_file(str(config_path))
 
-    assert [name for name, _ in schema.PIPELINE_FILES] == ["investors", "committed"]
-    assert schema.COMPETITORS_FILE.name == "blocked.json"
-    assert schema.SCORE_ORDER == {"🧊": 1, "🔥": 2}
-
-    # Restore defaults so other tests aren't affected
-    schema.apply_config(Config.from_file())
+    assert [name for name, _ in context.pipeline_files] == ["investors", "committed"]
+    assert context.competitors_file.name == "blocked.json"
+    assert context.score_order == {"🧊": 1, "🔥": 2}
+    assert all(path.parent == tmp_path for _name, path in context.pipeline_files)
