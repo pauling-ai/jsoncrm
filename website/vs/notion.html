@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JSONCRM vs Notion as a CRM — a database template isn't a pipeline</title>
+  <meta name="description" content="Notion is a superb workspace and a so-so CRM. An honest Notion CRM alternative comparison: where Notion-as-CRM breaks (enforcement, agents, ownership) and where it still wins.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/vs/notion">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="JSONCRM vs Notion as a CRM">
+  <meta property="og:description" content="A docs tool with a database, or a database with an audit log. Honest comparison.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/vs/notion">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="../assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="../"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="../#features">Features</a>
+      <a href="../#quickstart">Try it</a>
+      <a href="../#compare">Compare</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="../#compare">← all comparisons</a>
+    <h1 class="section-title" style="text-align:left">JSONCRM vs Notion as a CRM</h1>
+
+    <div class="verdict">
+      <p><strong>The short version:</strong> Notion is an excellent workspace with a database bolted in —
+      and thousands of people run a perfectly fine lightweight CRM on a Notion template. JSONCRM is a
+      purpose-built pipeline with enforced stages, an audit log, and agents as first-class users. If your
+      CRM is <em>a board next to your docs</em>, stay in Notion. If your CRM is <em>a structured dataset
+      that software and agents operate on</em>, the template starts fighting you.
+      </p>
+    </div>
+
+    <div class="prose">
+      <p>
+        This comparison is a little unfair to both products, because they barely overlap. Notion answers
+        "where do my notes, docs, and wiki live?" — and its databases are flexible enough to hold contacts.
+        JSONCRM answers "where does my pipeline state live?" — and deliberately does nothing else. The
+        interesting question is which one your "CRM" actually is.
+      </p>
+
+      <h2>The core difference: schema by convention vs schema by enforcement</h2>
+      <p>
+        A Notion CRM is a database you configured: properties named <code>Stage</code>, <code>Score</code>,
+        <code>Last contact</code> — and a convention that everyone (and every agent) respects them. Nothing
+        enforces the convention: a stage can be renamed, a select option deleted, a row left half-filled.
+        JSONCRM's <code>.crm.json</code> defines stages, transitions, identity, and valid scores —
+        <code>promote</code> physically cannot move a lead to customer, and an invalid score is rejected at
+        write time. Convention reads nicer; enforcement scales.
+      </p>
+      <p>
+        The same split shows up in history. Notion gives you page history (on paid plans). Git gives you
+        <code>git log -p</code> on every record, forever, plus branches and PRs for review — the machinery
+        software teams already trust for exactly this problem.
+      </p>
+
+      <h2>Feature-by-feature</h2>
+    </div>
+
+    <div class="table-wrap" style="margin-top:20px">
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th class="col-us">JSONCRM</th>
+            <th>Notion as CRM</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>What it is</td>
+            <td class="col-us">Purpose-built pipeline tool</td>
+            <td>Template inside a general workspace</td>
+          </tr>
+          <tr>
+            <td>Data lives in</td>
+            <td class="col-us">JSON files in your git repo</td>
+            <td>Notion's cloud</td>
+          </tr>
+          <tr>
+            <td>Pipeline enforcement</td>
+            <td class="col-us">Configured stages + transitions; <code>promote</code>/<code>demote</code> only move along them</td>
+            <td>By convention (status property + views)</td>
+          </tr>
+          <tr>
+            <td>AI agent access</td>
+            <td class="col-us">First-party MCP server (21 tools) + CLI + agent skill; unmetered</td>
+            <td>Notion API / MCP — rate-limited, page-and-block oriented</td>
+          </tr>
+          <tr>
+            <td>Write safety</td>
+            <td class="col-us">Dry-run preview on every write; atomic file writes</td>
+            <td>Direct edits; page history to recover</td>
+          </tr>
+          <tr>
+            <td>History &amp; audit</td>
+            <td class="col-us">Full git history, diffs, revert, PR review</td>
+            <td>Page version history (paid tiers)</td>
+          </tr>
+          <tr>
+            <td>Notes &amp; docs</td>
+            <td class="col-us">A <code>notes</code> field per record (that's it)</td>
+            <td>Best-in-class: rich pages, linked docs, wikis</td>
+          </tr>
+          <tr>
+            <td>Non-CRM views</td>
+            <td class="col-us">Spreadsheet-style local web UI</td>
+            <td>Boards, calendars, galleries, filtered views — excellent</td>
+          </tr>
+          <tr>
+            <td>Collaboration</td>
+            <td class="col-us">Git branches + PRs; local web UI</td>
+            <td>Real-time multi-user editing</td>
+          </tr>
+          <tr>
+            <td>Price at 5 users</td>
+            <td class="col-us">$0, AGPL-3.0, no seats</td>
+            <td>$0 limited; ~$10–20/user/mo for the features teams actually need</td>
+          </tr>
+          <tr>
+            <td>Offline / local</td>
+            <td class="col-us">Fully local; sync is your git remote</td>
+            <td>Cloud-first; offline mode is best-effort</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="table-note">Notion pricing as of Oct 2026 — verify before buying.</p>
+
+    <div class="choose">
+      <div class="card">
+        <h3>🧭 Choose Notion if…</h3>
+        <ul>
+          <li>Your CRM is <strong>lightweight contact tracking</strong> living beside real docs and wikis</li>
+          <li>Non-technical teammates need <strong>real-time editing</strong> and familiar views</li>
+          <li>You want rich pages per account — meeting notes, specs, links — not structured fields</li>
+          <li>You already pay for Notion and the team lives there</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>⚡ Choose JSONCRM if…</h3>
+        <ul>
+          <li>The pipeline is <strong>structured records</strong> agents should compute over — scores, stages, bulk updates</li>
+          <li>You want <strong>enforced transitions</strong> and validation instead of convention</li>
+          <li><strong>Git as the audit log</strong> (diffs, revert, PR review) fits your team</li>
+          <li>You want unlimited, unmetered agent access without API rate limits</li>
+          <li>Your data should live in <strong>your</strong> repo, not a vendor's cloud</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="prose">
+      <h2>A note on fairness</h2>
+      <p>
+        Notion does things JSONCRM doesn't attempt and never will: docs, wikis, real-time collaboration,
+        a gallery view worth screenshotting. Plenty of two-person startups run healthy pipelines on a Notion
+        board and are right to. The failure mode we're addressing is specific: teams whose Notion CRM grew
+        into a dataset that humans re-type, agents can't reliably touch, and nobody can export cleanly.
+        If that's you, welcome.
+      </p>
+
+      <h2>Notion CRM — common questions</h2>
+    </div>
+
+    <div style="max-width:760px;margin:0 auto 52px">
+      <details>
+        <summary>Can AI agents use Notion as a CRM?</summary>
+        <div class="faq-body">
+          <p>Partially. Notion exposes an API and MCP integrations, but the data model is pages and blocks, not pipeline records — agents end up parsing layout instead of reading state, and the API is rate-limited. JSONCRM gives agents structured records and 21 purpose-built MCP tools with dry-run support, unmetered, because the files are local.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Is Notion a good CRM for small teams?</summary>
+        <div class="faq-body">
+          <p>For lightweight pipelines — contacts, a status board, notes — yes; it's flexible and your team probably already knows it. It stops fitting when you need enforced stage transitions, field validation, an audit trail, or programmatic/agent access, which is exactly the gap a structured, git-native CRM fills.</p>
+        </div>
+      </details>
+      <details>
+        <summary>How do I move a CRM out of Notion?</summary>
+        <div class="faq-body">
+          <p>Export the database as CSV, map columns to JSONCRM fields (name, company, email, score, stage), and drop the arrays into leads.json / prospects.json / customers.json. Because JSONCRM records are flat objects with arbitrary fields, any column can come along. Then validate with <code>jsoncrm validate</code> and commit — your history starts on day one.</p>
+        </div>
+      </details>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can AI agents use Notion as a CRM?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Partially — Notion has an API and MCP integrations, but the model is pages and blocks rather than pipeline records, and the API is rate-limited. JSONCRM gives agents structured records plus 21 purpose-built MCP tools with dry-run support." }
+        },
+        {
+          "@type": "Question",
+          "name": "Is Notion a good CRM for small teams?",
+          "acceptedAnswer": { "@type": "Answer", "text": "For lightweight contact tracking beside your docs, yes. It stops fitting when you need enforced stage transitions, validation, an audit trail, or reliable programmatic and agent access." }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I move a CRM out of Notion?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Export the database as CSV, map columns to flat JSONCRM record fields, place records in the stage files, run jsoncrm validate, and commit — history starts on day one." }
+        }
+      ]
+    }
+    </script>
+
+    <div class="cta-band">
+      <h2>Your pipeline deserves a schema.</h2>
+      <p>Free, enforced transitions, git history. Agents welcome.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="../#quickstart">Try JSONCRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="../index.html#quickstart">Quick start</a></li>
+          <li><a href="../mcp.html">MCP setup guide</a></li>
+          <li><a href="../cookbook.html">Agent cookbook</a></li>
+          <li><a href="../philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="twenty.html">vs Twenty</a></li>
+          <li><a href="attio.html">vs Attio</a></li>
+          <li><a href="notion.html">vs Notion</a></li>
+          <li><a href="airtable.html">vs Airtable</a></li>
+          <li><a href="hubspot.html">vs HubSpot</a></li>
+          <li><a href="../open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>

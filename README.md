@@ -22,12 +22,18 @@ This project is hosted [here](https://www.jsoncrm.dev)
 ## Installation
 
 ```bash
+# No install — run it straight from PyPI with uv
+uvx jsoncrm stats
+
+# Or install the core CLI (zero dependencies)
 pip install jsoncrm
-# or with web server support
+# with web server support
 pip install "jsoncrm[web]"
-# or with MCP server support
+# with MCP server support
 pip install "jsoncrm[mcp]"
 ```
+
+The core CLI has no dependencies, so a `uvx` cold start is near-instant. To run the web UI or MCP server without installing anything, use the extras form: `uvx --from "jsoncrm[web,mcp]" jsoncrm serve`.
 
 For JavaScript tests (optional):
 ```bash
@@ -196,6 +202,30 @@ claude mcp add --transport stdio jsoncrm -- jsoncrm --config /absolute/path/to/.
 ```
 
 The `item_json` arguments accept either the CLI's JSON-encoded string or a native MCP object. JSON list results are returned under `result`; output from legacy text-only commands is returned under `output`.
+
+## Agent Skill
+
+Give your agent expert jsoncrm workflow knowledge (dry-run discipline, identity rules, intake flow) — no MCP required, works alongside it.
+
+**Claude Code plugin** (one command, managed and updatable):
+
+```
+/plugin install jsoncrm --marketplace pauling-ai/jsoncrm
+```
+
+**Or install the skill directly** into your CRM repo:
+
+```bash
+# Claude Code (project-level skill)
+mkdir -p .claude/skills/jsoncrm
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/jsoncrm/SKILL.md \
+  -o .claude/skills/jsoncrm/SKILL.md
+
+# Codex / Cursor / any AGENTS.md-compatible agent
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/AGENTS-snippet.md >> AGENTS.md
+```
+
+For Claude Code user-level install (all projects), target `~/.claude/skills/jsoncrm/SKILL.md` instead.
 
 ## Web UI
 

@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 dist/
 build/
+.DS_Store
 
 # Secrets
 .env

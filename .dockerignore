@@ -1,0 +1,12 @@
+.git
+.idea
+.venv
+.pytest_cache
+node_modules
+jsoncrm.egg-info
+build
+dist
+website
+tests
+.DS_Store
+**/__pycache__

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The JSONCRM agent cookbook — recipes for AI-driven pipelines</title>
+  <meta name="description" content="Copy-paste workflows for running a CRM with AI agents: triaging intake lists, scoring leads, bulk promotions with dry-run previews, weekly reviews, and hygiene — with the exact CLI and MCP commands.">
+  <link rel="canonical" href="https://www.jsoncrm.dev/cookbook">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="The JSONCRM agent cookbook">
+  <meta property="og:description" content="Copy-paste workflows for AI-driven CRM pipelines: intake, scoring, promotion, review, hygiene.">
+  <meta property="og:url" content="https://www.jsoncrm.dev/cookbook">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="assets/style.css?v=4">
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><span class="brand-mark">{ }</span> jsoncrm</a>
+    <nav class="nav-links">
+      <a href="./#features">Features</a>
+      <a href="./#quickstart">Try it</a>
+      <a href="mcp.html">For agents</a>
+      <a class="nav-cta" href="https://github.com/pauling-ai/jsoncrm" target="_blank" rel="noopener">★ GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section>
+  <div class="container">
+    <a class="backlink" href="./">← home</a>
+    <h1 class="section-title" style="text-align:left">The agent cookbook</h1>
+
+    <div class="verdict">
+      <p><strong>House rules, then recipes.</strong> These are the workflows we run daily on a real pipeline —
+      the same commands work as CLI invocations or MCP tools (booleans instead of flags). Recipes assume the
+      <a href="mcp.html">MCP server is connected</a> or the CLI is installed.
+      </p>
+    </div>
+
+    <div class="card" style="max-width:760px;margin:24px auto">
+      <h3>⚖️ The three house rules</h3>
+      <ul>
+        <li><strong>Never hand-edit the JSON while a command exists.</strong> The CLI enforces identity, scores, and transitions, and writes atomically. If you must edit by hand, run <code>validate</code> after.</li>
+        <li><strong>Dry-run before you write.</strong> Every write takes <code>--dry-run</code> (CLI) or <code>dry_run: true</code> (MCP). Show the human the preview for anything nontrivial.</li>
+        <li><strong>Commit after you write.</strong> The git diff is the audit log — a write without a commit is a story without an ending.</li>
+      </ul>
+    </div>
+
+    <div class="prose">
+      <h2>Recipe 1 — Triage an intake list</h2>
+      <p>You exported 200 LinkedIn post likers. Get the clean ones into leads, scored:</p>
+      <div class="code-block"><span class="c"># 1. normalize the MCP export into flat CRM records (in place)</span>
+jsoncrm parse-from-linkedin-mcp likes.json
+
+<span class="c"># 2. preview, then drop records already in the pipeline</span>
+jsoncrm deduplicate likes.json --dry-run
+jsoncrm deduplicate likes.json
+
+<span class="c"># 3. preview, then drop competitors / blocklist matches</span>
+jsoncrm filter-competitors likes.json --dry-run
+jsoncrm filter-competitors likes.json
+
+<span class="c"># 4. agent scores each record (external data, judgment) — then merge</span>
+jsoncrm merge likes.json
+
+<span class="c"># 5. sanity + audit trail</span>
+jsoncrm validate
+git add -A &amp;&amp; git commit -m "intake: N new leads from LinkedIn likers"</div>
+      <p>What's left in <code>likes.json</code> after step 4 is the merge report — the unmerged are duplicates or invalid; check <code>validate</code> output if anything looks off.</p>
+
+      <h2>Recipe 2 — Score unscored leads, one at a time</h2>
+      <p>For careful scoring with a human in the loop, use the intake/pending cycle:</p>
+      <div class="code-block">jsoncrm intake intake.json     <span class="c"># writes .pending_update.json with the next unscored record</span></div>
+      <p>The agent researches the record, fills in <code>score</code> (must be a value from <code>.crm.json</code>'s <code>scores.order</code>) plus a one-line <code>notes</code> rationale, then:</p>
+      <div class="code-block">jsoncrm apply_update           <span class="c"># applies the pending file, one record per cycle</span></div>
+      <p>For bulk scoring, <code>update</code> with <code>--dry-run</code> per record is faster — but the pending cycle forces you to look at each one.</p>
+
+      <h2>Recipe 3 — Bulk promote qualified leads</h2>
+      <p>The highest-leverage agent loop. Preview everything, review, then commit:</p>
+      <div class="code-block"><span class="c"># who qualifies?</span>
+jsoncrm list leads --score "⭐⭐⭐⭐" -n 50
+
+<span class="c"># preview each promotion — nothing written</span>
+jsoncrm promote "https://linkedin.com/in/alice" --lead --dry-run
+jsoncrm promote "https://linkedin.com/in/bob"   --lead --dry-run
+
+<span class="c"># apply for real</span>
+jsoncrm promote "https://linkedin.com/in/alice" --lead --apply
+jsoncrm promote "https://linkedin.com/in/bob"   --lead --apply
+
+git diff --stat
+git add -A &amp;&amp; git commit -m "pipeline: promote 2 qualified leads"</div>
+      <p>Over MCP, the same prompt-shaped version: <em>"promote everyone at four stars or above — dry run first and show me each record."</em> Invalid transitions (customer → lead) simply don't exist — they're not configured in <code>.crm.json</code>.</p>
+
+      <h2>Recipe 4 — The Monday review (for humans)</h2>
+      <div class="code-block">jsoncrm stats                  <span class="c"># stage counts, scored/contacted, paid customers</span>
+jsoncrm top -n 10 --min ⭐⭐⭐     <span class="c"># best leads not yet contacted</span>
+jsoncrm recent -n 10             <span class="c"># freshest additions</span>
+jsoncrm search "Acme" --company  <span class="c"># the deal you're wondering about</span></div>
+      <p>Or just ask your agent: <em>"give me this week's pipeline summary — new leads, promotions, and the top 10 by score that we haven't contacted."</em></p>
+
+      <h2>Recipe 5 — Hygiene day</h2>
+      <div class="code-block">jsoncrm validate               <span class="c"># structural integrity of every pipeline file</span>
+jsoncrm backup                 <span class="c"># ZIP snapshot outside git → ~/.jsoncrm/backups/</span>
+git log --oneline --since="2 weeks ago" -- leads.json prospects.json</div>
+      <p>Git history won't save you from damage to <code>.git</code> itself — the backup is the independent copy.</p>
+
+      <h2>Teach your agent the house rules</h2>
+      <p>
+        All of this fits in a skill. Install the first-party one and every Claude Code session in your CRM repo
+        knows the rules, the command map, and the recipes:
+      </p>
+      <div class="code-block">mkdir -p .claude/skills/jsoncrm
+curl -fsSL https://raw.githubusercontent.com/pauling-ai/jsoncrm/main/skills/jsoncrm/SKILL.md \
+  -o .claude/skills/jsoncrm/SKILL.md</div>
+      <p>For Codex/Cursor, append <code>skills/AGENTS-snippet.md</code> to your <code>AGENTS.md</code>.</p>
+    </div>
+
+    <div class="cta-band">
+      <h2>Cook something.</h2>
+      <p>Every recipe above runs on the free tier of everything: your machine, your repo, your agent.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="./#quickstart">Start a CRM</a>
+        <a class="btn btn-ghost" style="background:transparent;color:#e6edf3;border-color:#2a313c" href="mcp.html">MCP setup guide</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Project</h4>
+        <ul>
+          <li><a href="https://github.com/pauling-ai/jsoncrm">GitHub repository</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/issues">Issues</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/README.md">README / docs</a></li>
+          <li><a href="https://github.com/pauling-ai/jsoncrm/blob/main/LICENSE">AGPL-3.0 license</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="./#quickstart">Quick start</a></li>
+          <li><a href="mcp.html">MCP setup guide</a></li>
+          <li><a href="cookbook.html">Agent cookbook</a></li>
+          <li><a href="philosophy.html">Philosophy</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Comparisons</h4>
+        <ul>
+          <li><a href="vs/hermit-crm.html">vs Hermit CRM</a></li>
+          <li><a href="vs/twenty.html">vs Twenty</a></li>
+          <li><a href="vs/attio.html">vs Attio</a></li>
+          <li><a href="vs/notion.html">vs Notion</a></li>
+          <li><a href="open-source-crm.html">Open source CRM guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:info@pauling.ai">info@pauling.ai</a></li>
+          <li><a href="">Commercial licensing available</a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-tag">// a CRM for humans and AI agents · © 2026 Pauling.AI · AGPL-3.0</p>
+  </div>
+</footer>
+
+</body>
+</html>
